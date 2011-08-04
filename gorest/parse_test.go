@@ -55,7 +55,7 @@ func TestEndPointStruct(t *testing.T){
     if meta.requestMethod != GET{
        t.Error("Parsed incorrectly: request method ")
     }
-    if meta.signiture != "serv/person/"{
+    if meta.root != "serv/person/"{
        t.Error("Parsed incorrectly: root ")
     }
 
@@ -66,7 +66,7 @@ func TestEndPointStruct(t *testing.T){
 
     if meta.paramLen != 2{
        t.Error("Parsed incorrectly: parameter length ")
-    }else if meta.params[0].parName != "FName" && meta.params[0].pos != 0 && meta.params[0].typeName != "User"{
+    }else if meta.params[0].name != "FName"  && meta.params[0].typeName != "User"{
        t.Error("Parsed incorrectly: path parameter names and types")
     }
 

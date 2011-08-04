@@ -1,6 +1,6 @@
 include $(GOROOT)/src/Make.inc
 
-TARG=launchpad.net/gorest
+TARG=code.google.com/p/gorest
 
 GOFILES=\
     doc.go\

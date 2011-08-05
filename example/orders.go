@@ -41,20 +41,20 @@ func main(){
 
 type OrderService struct{
     //Service level config
-    gorest.RestService    "root=/orders-service/; consumes=application/json; produces=application/json"
+    gorest.RestService    `root:"/orders-service/" consumes:"application/json" produces:"application/json"`
 
     //End-Point level configs: Field names must be the same as the corresponding method names,
     // but not-exported (starts with lowercase)
 
-    userDetails gorest.EndPoint "method=GET; path=/users/{Id:int}; output=User"
-    listItems   gorest.EndPoint "method=GET; path=/items; output=[]Item"
-    addItem     gorest.EndPoint "method=POST; path=/items; postdata=Item"
+    userDetails gorest.EndPoint `method:"GET" path:"/users/{Id:int}" output:"User"`
+    listItems   gorest.EndPoint `method:"GET" path:"/items/" output:"[]Item"`
+    addItem     gorest.EndPoint `method:"POST" path:"/items/" postdata:"Item"`
 
     //On real app for placeOrder below, the POST URL would probably be just /orders/, this is just to
     // demo the ability of mixing post-data parameters with URL mapped parameters.
-    placeOrder  gorest.EndPoint "method=POST; path=/orders/new/{UserId:int}/{RequestDiscount:bool}; postdata=Order"
-    viewOrder     gorest.EndPoint "method=GET; path=/orders/{OrderId:int}; output=Order"
-    deleteOrder     gorest.EndPoint "method=DELETE; path=/orders/{OrderId:int};"
+    placeOrder  gorest.EndPoint `method:"POST" path:"/orders/new/{UserId:int}/{RequestDiscount:bool}" postdata:"Order"`
+    viewOrder     gorest.EndPoint `method:"GET" path:"/orders/{OrderId:int}" output:"Order"`
+    deleteOrder     gorest.EndPoint `method:"DELETE" path:"/orders/{OrderId:int}"`
 
 
 }

@@ -192,7 +192,10 @@ func panicMethNotFound(methFound bool,ep endPointStruct,t reflect.Type, f reflec
         }
         var suffix string = "("+isArr+ep.outputType+")# with one("+isArr+ep.outputType+") return parameter."
         if ep.requestMethod ==POST || ep.requestMethod ==PUT{
-            str ="PostData "+ep.postdataType+", "
+            str ="PostData "+ep.postdataType
+            if ep.paramLen >0{
+                str+=", "
+            }
 
         }
         if ep.requestMethod ==POST || ep.requestMethod ==PUT || ep.requestMethod ==DELETE{

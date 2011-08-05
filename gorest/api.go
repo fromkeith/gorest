@@ -74,6 +74,7 @@ func(this *ResponseBuilder) SetResponseCode(code int) *ResponseBuilder{
 }
 
 func(this *ResponseBuilder) SetContentType(mime string) *ResponseBuilder{
+    this.ctx.responseMimeSet =true
     this.writer().Header().Set("Content-Type", mime)
     return this
 }
@@ -100,6 +101,7 @@ func(this *ResponseBuilder) Write(data []byte) *ResponseBuilder{
 
     }
     if !this.ctx.dataHasBeenWritten{
+       //TODO: Check for content type set.......
        this.writer().WriteHeader(this.ctx.responseCode)
     }
 

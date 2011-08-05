@@ -119,9 +119,15 @@ func(man *manager) ServeHTTP(w http.ResponseWriter,r *http.Request){
                 }
                 case GET:{
                     if ctx.responseCode ==0{
+                        if !ctx.responseMimeSet{
+                             w.Header().Set("Content-Type", "application/json")//TODO: get correct service one
+                        }
                         w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
                     }else{
                         if !ctx.dataHasBeenWritten{
+                            if !ctx.responseMimeSet{
+                                 w.Header().Set("Content-Type", "application/json")//TODO: get correct service one
+                            }
                             w.WriteHeader(ctx.responseCode)
                         }
                     }
@@ -129,14 +135,6 @@ func(man *manager) ServeHTTP(w http.ResponseWriter,r *http.Request){
                     if !ctx.overide{
                         w.Write(data)
                     }
-
-//                    if data !=nil{
-//                      w.Header().Set("Content-Type", "application/json") //TODO: Use registered mime-type here
-//                      w.Header().Set("Connection", "Keep-Alive")
-////                    w.Header().Set("Content-length",string(len(data)))
-//                      w.WriteHeader(http.StatusOK)
-//                      w.Write(data)
-//                    }
 
                 }
             }

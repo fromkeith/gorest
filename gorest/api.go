@@ -1,11 +1,27 @@
-/**
- * Created by IntelliJ IDEA.
- * User: DlaminiSi
- * Date: 2011/07/27
- * Time: 1:34 AM
- * To change this template use File | Settings | File Templates.
- */
-
+//Copyright 2011 Siyabonga Dlamini (siyabonga.dlamini@gmail.com). All rights reserved.
+//
+//Redistribution and use in source and binary forms, with or without
+//modification, are permitted provided that the following conditions
+//are met:
+//
+//  1. Redistributions of source code must retain the above copyright
+//     notice, this list of conditions and the following disclaimer.
+//
+//  2. Redistributions in binary form must reproduce the above copyright
+//     notice, this list of conditions and the following disclaimer
+//     in the documentation and/or other materials provided with the
+//     distribution.
+//
+//THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+//IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+//OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+//IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+//SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+//PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+//OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+//WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+//OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+//ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package gorest
 
@@ -45,9 +61,6 @@ func (c *Context) Request() (*http.Request){
 }
 
 
-type Response struct{
-
-}
 
 type ResponseBuilder struct{
     ctx *Context
@@ -101,9 +114,7 @@ func(this *ResponseBuilder) LongPoll(delay int,producer func(interface{})interfa
     return this
 }
 
-func(this *ResponseBuilder) Send() Response{
-    return Response{}
-}
+
 
 //Cache related
 func(this *ResponseBuilder) CachePublic() *ResponseBuilder{
@@ -150,8 +161,37 @@ func(this *ResponseBuilder) ConnectionKeepAlive(seconds int) *ResponseBuilder{
     this.writer().Header().Set("Connection", "keep-alive")
     return this
 }
-func(this *ResponseBuilder) ConnectionClose(seconds int) *ResponseBuilder{
+func(this *ResponseBuilder) ConnectionClose() *ResponseBuilder{
     this.writer().Header().Set("Connection", "close")
+    return this
+}
+func(this *ResponseBuilder) Location(location string) *ResponseBuilder{
+    this.writer().Header().Set("Location", location)
+    return this
+}
+func(this *ResponseBuilder) Created(location string) *ResponseBuilder{
+    this.ctx.responseCode =201
+    this.writer().Header().Set("Location", location)
+    return this
+}
+func(this *ResponseBuilder) MovedPermanently(location string) *ResponseBuilder{
+    this.ctx.responseCode =301
+    this.writer().Header().Set("Location", location)
+    return this
+}
+func(this *ResponseBuilder) Found(location string) *ResponseBuilder{
+    this.ctx.responseCode =302
+    this.writer().Header().Set("Location", location)
+    return this
+}
+func(this *ResponseBuilder) SeeOther(location string) *ResponseBuilder{
+    this.ctx.responseCode =303
+    this.writer().Header().Set("Location", location)
+    return this
+}
+func(this *ResponseBuilder) MovedTemporarily(location string) *ResponseBuilder{
+    this.ctx.responseCode =307
+    this.writer().Header().Set("Location", location)
     return this
 }
 

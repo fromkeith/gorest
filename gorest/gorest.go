@@ -24,11 +24,12 @@
 //ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package gorest
-import "log"
-import "http"
-import "strconv"
-import "json"
-import "os"
+
+import(
+    "http"
+    "strconv"
+    "json"
+    "os")
 
 type GoRestService interface{
     ResponseBuilder()*ResponseBuilder
@@ -145,7 +146,7 @@ func(man *manager) ServeHTTP(w http.ResponseWriter,r *http.Request){
         }
 
     }else{
-        println("Could not serve page: ", r.RawURL)
+//        println("Could not serve page: ", r.RawURL)
         w.WriteHeader(http.StatusNotFound)
         w.Write([]byte("The resource in the requested path could not be found."))
     }
@@ -153,9 +154,7 @@ func(man *manager) ServeHTTP(w http.ResponseWriter,r *http.Request){
 }
 
 func(man *manager) getType(name string) serviceMetaData{
-     for str,_:=range man.serviceTypes{
-        println("service name:",str)
-     }
+
      return man.serviceTypes[name]
 }
 func(man *manager) addType(name string,i serviceMetaData) string{
@@ -173,7 +172,7 @@ func(man *manager) addEndPoint(ep endPointStruct){
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request){
-    log.Println("Serving URL : ",r.RawURL)
+//    log.Println("Serving URL : ",r.RawURL)
     restManager.ServeHTTP(w,r)
 }
 
@@ -191,7 +190,7 @@ func unMarshal(mime string,data []byte, i interface{}) os.Error{
     if mime == "application/json"{
       return json.Unmarshal(data,i)
     }
-    println("Could not find any registered marshaller for mime "+mime)
+//    println("Could not find any registered marshaller for mime "+mime)
     return os.NewError("Could not find any registered marshaller for mime "+mime)
 }
 
@@ -199,7 +198,7 @@ func marshal(mime string,i interface{})([]byte,os.Error){
      if mime == "application/json"{
         return json.Marshal(i)
      }
-     println("Could not find any registered marshaller for mime "+mime)
+//     println("Could not find any registered marshaller for mime "+mime)
      return nil,os.NewError("Could not find any registered marshaller for mime "+mime)
 }
 func getDefaultResponseCode(method string)int{

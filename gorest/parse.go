@@ -29,6 +29,7 @@ package gorest
 import(
     "strings"
     "log"
+    "reflect"
 )
 
 
@@ -47,75 +48,72 @@ type param struct{
 var ALLOWED_PAR_TYPES= []string{"string","int","bool","float32","float64"}
 
 
-func prepServiceMetaData(tag string,i interface{}) serviceMetaData{
+func prepServiceMetaData(tags reflect.StructTag,i interface{}) serviceMetaData{
     md:=new(serviceMetaData)
-    tag= strings.Trim(tag," ")
-    tag= strings.Trim(tag,";")
-    for _,str:= range strings.Split(tag,";",-1){
-         str = strings.Trim(str," ")
-         if strings.HasPrefix(str,"root="){
-             name:= str[strings.Index(str,"=")+1:]
-             md.root =name
-         }else if strings.HasPrefix(str,"consumes="){
-             name:= str[strings.Index(str,"=")+1:]
-             md.consumesMime =name
-         }else if strings.HasPrefix(str,"produces="){
-             name:= str[strings.Index(str,"=")+1:]
-             md.producesMime =name
-         }else{
-            panic("Unknown annotaion: "+str+"; in service declaration. Allowed types {root,consumes,produces}")
-         }
+
+
+    if tag:=tags.Get("root"); tag!= ""{
+        md.root =tag
     }
+    if tag:=tags.Get("consumes"); tag!= ""{
+        md.consumesMime =tag
+    }
+    if tag:=tags.Get("produces"); tag!= ""{
+        md.producesMime =tag
+    }
+
     md.template = i
     return *md
 }
 
-func makeEndPointStruct(tags string,serviceRoot string) endPointStruct{
+func makeEndPointStruct(tags reflect.StructTag,serviceRoot string) endPointStruct{
 
     ms:=new(endPointStruct)
-    tags= strings.Trim(tags," ")
-    tags= strings.Trim(tags,";")
 
-    for _,str:= range strings.Split(tags,";",-1){
-       str = strings.Trim(str," ")
-       if strings.HasPrefix(str,"method="){
-            name:= str[strings.Index(str,"=")+1:]
-            if name=="GET"{
-                ms.requestMethod =GET
-            }else if name=="POST"{
-                ms.requestMethod =POST
-            }else if name=="PUT"{
-                ms.requestMethod =PUT
-            }else if name=="DELETE"{
-                ms.requestMethod =DELETE
-            }else if name=="OPTIONS"{
-                ms.requestMethod =OPTIONS
-            }else {
-                panic("Unknown method type:["+name+"] in endpoint declaration. Allowed types {GET,POST,PUT,DELETE,OPTIONS}")
-            }
-       }else if strings.HasPrefix(str,"path=") {
+    if tag:=tags.Get("method"); tag!= ""{
+        if tag=="GET"{
+            ms.requestMethod =GET
+        }else if tag=="POST"{
+            ms.requestMethod =POST
+        }else if tag=="PUT"{
+            ms.requestMethod =PUT
+        }else if tag=="DELETE"{
+            ms.requestMethod =DELETE
+        }else if tag=="OPTIONS"{
+            ms.requestMethod =OPTIONS
+        }else {
+            log.Panic("Unknown method type:["+tag+"] in endpoint declaration. Allowed types {GET,POST,PUT,DELETE,OPTIONS}")
+        }
+
+        if tag:=tags.Get("path"); tag!= ""{
              serviceRoot = strings.TrimRight(serviceRoot,"/")
-             name:= str[strings.Index(str,"=")+1:]
-             ms.signiture = serviceRoot+ "/" + strings.TrimLeft(name,"/")
-       }else if strings.HasPrefix(str,"output=") {
-             name:= str[strings.Index(str,"=")+1:]
-             ms.outputType = name
-             if strings.HasPrefix(name,"[]"){  //Check for slice/array/list types. We only handle these on output!!!
-                ms.outputTypeIsArray =true
-                ms.outputType = ms.outputType[2:]
-             }
-       }else if strings.HasPrefix(str,"input=") {
-             name:= str[strings.Index(str,"=")+1:]
-             ms.inputMime = name
-       }else if strings.HasPrefix(str,"postdata=") {
-             name:= str[strings.Index(str,"=")+1:]
-             ms.postdataType = name
-       }else {
-            panic("Unknown annotaion: "+str+"; in service declaration. Allowed types {method,path,output,input}")
-       }
+             ms.signiture = serviceRoot+ "/" + strings.Trim(tag,"/")
+        }else{
+              panic("Endpoint declaration must have the tags 'method' and 'path' ")
+        }
+
+        if tag:=tags.Get("output"); tag!= ""{
+            ms.outputType = tag
+            if strings.HasPrefix(tag,"[]"){  //Check for slice/array/list types. We only handle these on output!!!
+               ms.outputTypeIsArray =true
+               ms.outputType = ms.outputType[2:]
+            }
+        }
+
+        if tag:=tags.Get("input"); tag!= ""{
+            ms.inputMime = tag
+        }
+
+        if tag:=tags.Get("postdata"); tag!= ""{
+            ms.postdataType = tag
+        }
+
+        parseParams(ms)
+        return *ms
     }
-    parseParams(ms)
-    return *ms
+
+    panic("Endpoint declaration must have the tags 'method' and 'path' ")
+
 }
 func parseParams(e *endPointStruct){
     e.signiture=strings.Trim(e.signiture,"/")
@@ -129,7 +127,7 @@ func parseParams(e *endPointStruct){
     }
 
     //Extract path parameters
-    for pos,str1:= range strings.Split(e.signiture,"/",-1){
+    for pos,str1:= range strings.Split(e.signiture,"/"){
         e.signitureLen++
         if strings.HasPrefix(str1,"{") && strings.HasSuffix(str1,"}"){
 
@@ -180,20 +178,21 @@ func isAllowedParamType(typeName string)bool{
 
 
 func getEndPointByUrl(method string,url string) (endPointStruct,[]argumentData,bool){
-    println("Looking for "+method+" url endpoint: ",url)
+
     url=strings.Trim(url,"/")
     totalParts:= strings.Count(url,"/")
     totalParts++
 
-    log.Println("Endpoints: ",len(_manager().endpoints))
+
     epRet:=new(endPointStruct)
     adarr:=make([]argumentData,0)
     ok:=false
     for _,ep:= range _manager().endpoints{
+
        if strings.Contains(url,ep.root) && ep.signitureLen== totalParts && ep.requestMethod ==method{   //TODO: Make sure it starts with
-           log.Println("End point found: ",ep.requestMethod,ep.root,ep.signiture,ep.signitureLen,url,ep.paramLen)
+//           log.Println("End point found: ",ep.requestMethod,ep.root,ep.signiture,ep.signitureLen,url,ep.paramLen)
            for _,par:=range ep.params{
-                for upos,str1:= range strings.Split(url,"/",-1){
+                for upos,str1:= range strings.Split(url,"/"){
                     if par.positionInPath==upos{
                         adarr=append(adarr,argumentData{par,strings.Trim(str1," ")})
                     }

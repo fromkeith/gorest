@@ -26,14 +26,15 @@
 package gorest
 
 
-import "reflect"
-import "strings"
-import "log"
-import "strconv"
-import "bytes"
-import "http"
-
-import "io"
+import (
+    "reflect"
+    "strings"
+    "log"
+    "strconv"
+    "bytes"
+    "http"
+    "io"
+    )
 
 
 
@@ -80,17 +81,17 @@ func RegisterService(h interface{}){
 
 
 func mapFieldsToMethods(t reflect.Type, f reflect.StructField,typeFullName string,serviceRoot string){
-    println("Type Fullname",typeFullName,f.Name)
+
    if f.Name != "RestService" && f.Type.Name() == "EndPoint"{   //TODO: Proper type checking, not by name
-      println(f.Name,f.Type.Name())
+
       ep:=makeEndPointStruct(f.Tag,serviceRoot)
       ep.parentTypeName = typeFullName
-      println("Parent type name now  set: ", typeFullName)
+
 
 
       var method reflect.Method
       methodName:= strings.ToUpper(f.Name[:1]) + f.Name[1:]
-      println(methodName, ":", ep.requestMethod,ep.signiture,ep.outputType,ep.root,ep.paramLen)
+
 
 
       methFound:=false
@@ -108,10 +109,10 @@ func mapFieldsToMethods(t reflect.Type, f reflect.StructField,typeFullName strin
 
       { //Panic Checks
           if !methFound{
-            panic("Method name not found. "+ panicMethNotFound(methFound ,ep ,t , f,methodName ))
+            log.Panic("Method name not found. "+ panicMethNotFound(methFound ,ep ,t , f,methodName ))
           }
           if !isLegalForRequestType(method.Type,ep){
-            panic("Parameter list not matching. "+panicMethNotFound(methFound ,ep ,t , f,methodName ))
+            log.Panic("Parameter list not matching. "+panicMethNotFound(methFound ,ep ,t , f,methodName ))
           }
       }
       ep.methodNumberInParent = methodNumberInParent
@@ -155,9 +156,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
         }
         //Check the rest of the input param types
         for i:=numInputIgnore;i<methType.NumIn();i++{
-            println(methType.In(i).Name())
             if methType.In(i).Name() != ep.params[i-numInputIgnore].typeName{
-
                 cool=false
                 break
             }
@@ -243,7 +242,7 @@ func prepareServe(context *Context,ep endPointStruct) ([]byte,restStatus) {
     	io.Copy(buf, context.request.Body)
         body := buf.String()
 
-        println("This is the body of the post:",body)
+//        println("This is the body of the post:",body)
 
         if v,state:=makeArg(ep.postdataType,body,postdatVal.Type(),servMeta.consumesMime);state.httpCode != http.StatusBadRequest{
            arrArgs=append(arrArgs,v)
@@ -276,18 +275,18 @@ func prepareServe(context *Context,ep endPointStruct) ([]byte,restStatus) {
              return bytarr,restStatus{http.StatusOK,""}
 
           }else{
-            println("Error handling json...")
+
             //This is an internal error with the registered not being able to marshal internal structs
             return nil,restStatus{http.StatusInternalServerError,"Internal server error."}
           }
       }else{
-            println("POST succsesfull, notthing to return")
+
             return nil,restStatus{http.StatusOK,""}
       }
     }
 
     //Just in case the whole civilization crashes and it falls thru to here. This shall never happen though... well tested
-    log.Fatalln("There was a problem with request handing. Probably a bug, please report.") //Add client data, and send support alert
+    log.Panic("There was a problem with request handing. Probably a bug, please report.") //Add client data, and send support alert
     return nil, restStatus{http.StatusInternalServerError,"Internal server error."}
 }
 
@@ -325,7 +324,7 @@ func callReqisteredUnMarhaller(data string,mime string,template reflect.Type)(re
 
       i:= reflect.New(template).Interface()
       if err:=unMarshal(mime,[]byte(data),i);err!=nil{
-        println("Error marhsaling string",err.String())
+        log.Println("Error marhsaling string",err.String())
         return reflect.ValueOf(nil),restStatus{http.StatusBadRequest,"Error Unmarshalling data using "+mime+". Client sent incompetible data format in entity."}
       }
       return reflect.ValueOf(i).Elem(),restStatus{http.StatusOK,""}

@@ -25,200 +25,203 @@
 
 package gorest
 
-import(
-    "http"
-    "strconv"
-    "json"
-    "os")
+import (
+	"http"
+	"strconv"
 
-type GoRestService interface{
-    ResponseBuilder()*ResponseBuilder
-}
-
-const(
-    GET="GET"
-    POST="POST"
-    PUT="PUT"
-    DELETE="DELETE"
-    OPTIONS="OPTIONS"
 )
 
-type endPointStruct struct{
-    name string
-    requestMethod string
-    signiture string
-	root string
-    params map[int]param   //path parameter name and position
-
-    signitureLen int
-    paramLen int
-
-    inputMime  string
-    outputType string
-    outputTypeIsArray bool
-    outputTypeIsMap bool
-    postdataType string
-
-    parentTypeName string
-    methodNumberInParent int
+type GoRestService interface {
+	ResponseBuilder() *ResponseBuilder
 }
 
-type restStatus struct{
-    httpCode int
-    reason string //Especially for code in range 4XX to 5XX
+const (
+	GET     = "GET"
+	POST    = "POST"
+	PUT     = "PUT"
+	DELETE  = "DELETE"
+	OPTIONS = "OPTIONS"
+)
+
+type endPointStruct struct {
+	name          string
+	requestMethod string
+	signiture     string
+	root          string
+	params        map[int]param //path parameter name and position
+
+	signitureLen int
+	paramLen     int
+
+	inputMime         string
+	outputType        string
+	outputTypeIsArray bool
+	outputTypeIsMap   bool
+	
+	postdataType      string
+	postdataTypeIsArray bool
+	postdataTypeIsMap   bool
+
+	parentTypeName       string
+	methodNumberInParent int
 }
 
-func(err restStatus) String()string{
-    return err.reason
+type restStatus struct {
+	httpCode int
+	reason   string //Especially for code in range 4XX to 5XX
+}
+
+func (err restStatus) String() string {
+	return err.reason
 }
 
 
+type serviceMetaData struct {
+	template     interface{}
+	consumesMime string
+	producesMime string
+	root         string
+}
 
 
 var restManager *manager
+var handlerInitialised bool
 
-func init(){
-      restManager=new(manager)
-      restManager.serviceTypes = make(map[string]serviceMetaData,0)
-      restManager.endpoints = make(map[string]endPointStruct,0)
+type manager struct {
+	serviceTypes map[string]serviceMetaData
+	endpoints    map[string]endPointStruct
+}
+
+func newManager() *manager {
+	man := new(manager)
+	man.serviceTypes = make(map[string]serviceMetaData, 0)
+	man.endpoints = make(map[string]endPointStruct, 0)
+
+	return man
+}
+func init() {
+
+	RegisterMarshaller(Application_Json, NewJSONMarshaller())
+}
+
+
+func RegisterService(h interface{}) {
+	//We only initialise the handler management once we know gorest is being used to hanlde request as well, not just client.
+	if !handlerInitialised {
+		restManager = newManager()
+		handlerInitialised = true
+	}
+
+	registerService(h)
+}
+
+func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if ep, args, found := getEndPointByUrl(r.Method, r.RawURL); found {
+
+		ctx := new(Context)
+		ctx.writer = w
+		ctx.request = r
+		ctx.args = args
+
+		data, state := prepareServe(ctx, ep)
+
+		if state.httpCode == http.StatusOK {
+			switch ep.requestMethod {
+			case POST, PUT, DELETE:
+				{
+					if ctx.responseCode == 0 {
+						w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
+					} else {
+						if !ctx.dataHasBeenWritten {
+							w.WriteHeader(ctx.responseCode)
+						}
+					}
+				}
+			case GET:
+				{
+					if ctx.responseCode == 0 {
+						if !ctx.responseMimeSet {
+							w.Header().Set("Content-Type", man.getType(ep.parentTypeName).producesMime)
+						}
+						w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
+					} else {
+						if !ctx.dataHasBeenWritten {
+							if !ctx.responseMimeSet {
+								w.Header().Set("Content-Type", man.getType(ep.parentTypeName).producesMime)
+							}
+							w.WriteHeader(ctx.responseCode)
+						}
+					}
+
+					if !ctx.overide {
+						w.Write(data)
+					}
+
+				}
+			}
+
+		} else {
+			w.WriteHeader(state.httpCode)
+			w.Write([]byte(state.reason))
+		}
+
+	} else {
+		//        println("Could not serve page: ", r.RawURL)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("The resource in the requested path could not be found."))
+	}
+
+}
+
+func (man *manager) getType(name string) serviceMetaData {
+
+	return man.serviceTypes[name]
+}
+func (man *manager) addType(name string, i serviceMetaData) string {
+	for str, _ := range man.serviceTypes {
+		if name == str {
+			return str
+		}
+	}
+
+	man.serviceTypes[name] = i
+	return name
+}
+func (man *manager) addEndPoint(ep endPointStruct) {
+	man.endpoints[ep.requestMethod+":"+ep.signiture] = ep
+}
+
+func mainHandler(w http.ResponseWriter, r *http.Request) {
+	//    log.Println("Serving URL : ",r.RawURL)
+	restManager.ServeHTTP(w, r)
+}
+
+func ServeStandAlone(port int) {
+	http.HandleFunc("/", mainHandler)
+	http.ListenAndServe(":"+strconv.Itoa(port), nil)
+}
+
+func _manager() *manager {
+	return restManager
 }
 
 
 
-type manager struct{
-    serviceTypes map[string]serviceMetaData
-    endpoints map[string]endPointStruct
+func getDefaultResponseCode(method string) int {
+	switch method {
+	case GET, PUT, DELETE:
+		{
+			return 200
+		}
+	case POST:
+		{
+			return 202
+		}
+	default:
+		{
+			return 200
+		}
+	}
+
+	return 200
 }
-
-type serviceMetaData struct{
-    template interface{}
-    consumesMime string
-    producesMime string
-    root string
-}
-
-func(man *manager) ServeHTTP(w http.ResponseWriter,r *http.Request){
-    if ep,args,found:=getEndPointByUrl(r.Method,r.RawURL);found{
-
-        ctx:=new(Context)
-        ctx.writer=w
-        ctx.request=r
-        ctx.args =args
-
-        data,state:= prepareServe(ctx,ep)
-
-        if state.httpCode == http.StatusOK{
-            switch ep.requestMethod{
-                case POST,PUT,DELETE:{
-                    if ctx.responseCode ==0{
-                        w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
-                    }else{
-                        if !ctx.dataHasBeenWritten{
-                            w.WriteHeader(ctx.responseCode)
-                        }
-                    }
-                }
-                case GET:{
-                    if ctx.responseCode ==0{
-                        if !ctx.responseMimeSet{
-                             w.Header().Set("Content-Type", "application/json")//TODO: get correct service one
-                        }
-                        w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
-                    }else{
-                        if !ctx.dataHasBeenWritten{
-                            if !ctx.responseMimeSet{
-                                 w.Header().Set("Content-Type", "application/json")//TODO: get correct service one
-                            }
-                            w.WriteHeader(ctx.responseCode)
-                        }
-                    }
-
-                    if !ctx.overide{
-                        w.Write(data)
-                    }
-
-                }
-            }
-
-        }else{
-            w.WriteHeader(state.httpCode)
-            w.Write([]byte(state.reason))
-        }
-
-    }else{
-//        println("Could not serve page: ", r.RawURL)
-        w.WriteHeader(http.StatusNotFound)
-        w.Write([]byte("The resource in the requested path could not be found."))
-    }
-
-}
-
-func(man *manager) getType(name string) serviceMetaData{
-
-     return man.serviceTypes[name]
-}
-func(man *manager) addType(name string,i serviceMetaData) string{
-   for str,_:=range man.serviceTypes{
-        if name == str{
-            return str
-        }
-   }
-
-   man.serviceTypes[name]=i
-   return name
-}
-func(man *manager) addEndPoint(ep endPointStruct){
-    man.endpoints[ep.requestMethod+":"+ep.signiture] = ep
-}
-
-func mainHandler(w http.ResponseWriter, r *http.Request){
-//    log.Println("Serving URL : ",r.RawURL)
-    restManager.ServeHTTP(w,r)
-}
-
-func ServeStandAlone(port int){
-    http.HandleFunc("/", mainHandler)
-    http.ListenAndServe(":"+strconv.Itoa(port), nil)
-}
-
-func _manager()*manager{
-    return restManager
-}
-
-func unMarshal(mime string,data []byte, i interface{}) os.Error{
-    //TODO: Get the appropriate marshaller from list of registered ones
-    if mime == "application/json"{
-      return json.Unmarshal(data,i)
-    }
-//    println("Could not find any registered marshaller for mime "+mime)
-    return os.NewError("Could not find any registered marshaller for mime "+mime)
-}
-
-func marshal(mime string,i interface{})([]byte,os.Error){
-     if mime == "application/json"{
-        return json.Marshal(i)
-     }
-//     println("Could not find any registered marshaller for mime "+mime)
-     return nil,os.NewError("Could not find any registered marshaller for mime "+mime)
-}
-func getDefaultResponseCode(method string)int{
-    switch method{
-        case GET, PUT,DELETE:{
-            return 200
-        }
-        case POST:{
-            return 202
-        }
-        default:{
-            return 200
-        }
-    }
-
-    return 200
-}
-
-
-
-
-
-

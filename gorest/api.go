@@ -25,178 +25,176 @@
 
 package gorest
 
-import(
-    "http"
-
+import (
+	"http"
+	"strconv"
 )
 
 type EndPoint bool
 
 
-
-type RestService struct{
-    Context *Context
+type RestService struct {
+	Context *Context
 }
 
 
-func (serv RestService) ResponseBuilder()*ResponseBuilder{
-    r:=ResponseBuilder{ctx:serv.Context}
-     return &r
+func (serv RestService) ResponseBuilder() *ResponseBuilder {
+	r := ResponseBuilder{ctx: serv.Context}
+	return &r
 }
 
-type Context struct{
-    writer http.ResponseWriter
-    request *http.Request
-    args []argumentData
+type Context struct {
+	writer  http.ResponseWriter
+	request *http.Request
+	args    []argumentData
 
-    //Response flags
-    overide bool
-    responseCode int
-    responseMimeSet bool
-    dataHasBeenWritten bool
-}
-
-func (c *Context) Request() (*http.Request){
-    return c.request
+	//Response flags
+	overide            bool
+	responseCode       int
+	responseMimeSet    bool
+	dataHasBeenWritten bool
 }
 
-
-
-type ResponseBuilder struct{
-    ctx *Context
-}
-func(this *ResponseBuilder) writer() http.ResponseWriter{
-    return this.ctx.writer
-}
-func(this *ResponseBuilder) SetResponseCode(code int) *ResponseBuilder{
-    this.ctx.responseCode =code
-    return this
+func (c *Context) Request() *http.Request {
+	return c.request
 }
 
-func(this *ResponseBuilder) SetContentType(mime string) *ResponseBuilder{
-    this.ctx.responseMimeSet =true
-    this.writer().Header().Set("Content-Type", mime)
-    return this
+
+type ResponseBuilder struct {
+	ctx *Context
 }
-func(this *ResponseBuilder) ContentType(mime string) *ResponseBuilder{
-    this.writer().Header().Add("Content-Type", mime)
-    return this
+
+func (this *ResponseBuilder) writer() http.ResponseWriter {
+	return this.ctx.writer
 }
+func (this *ResponseBuilder) SetResponseCode(code int) *ResponseBuilder {
+	this.ctx.responseCode = code
+	return this
+}
+
+func (this *ResponseBuilder) SetContentType(mime string) *ResponseBuilder {
+	this.ctx.responseMimeSet = true
+	this.writer().Header().Set("Content-Type", mime)
+	return this
+}
+
 
 //Entity related
-func(this *ResponseBuilder) Overide(overide bool){
-    this.ctx.overide =overide
+func (this *ResponseBuilder) Overide(overide bool) {
+	this.ctx.overide = overide
 }
-func(this *ResponseBuilder) WriteAndOveride(data []byte) *ResponseBuilder{
-    this.ctx.overide =true
-    return this.Write(data)
+func (this *ResponseBuilder) WriteAndOveride(data []byte) *ResponseBuilder {
+	this.ctx.overide = true
+	return this.Write(data)
 }
-func(this *ResponseBuilder) WriteAndContinue(data []byte) *ResponseBuilder{
-    this.ctx.overide =false
-    return this.Write(data)
-}
-func(this *ResponseBuilder) Write(data []byte) *ResponseBuilder{
-    if this.ctx.responseCode ==0{
-        this.SetResponseCode(getDefaultResponseCode(this.ctx.request.Method))
-
-    }
-    if !this.ctx.dataHasBeenWritten{
-       //TODO: Check for content type set.......
-       this.writer().WriteHeader(this.ctx.responseCode)
-    }
-
-    this.writer().Write(data)
-    this.ctx.dataHasBeenWritten =true
-    return this
+func (this *ResponseBuilder) WriteAndContinue(data []byte) *ResponseBuilder {
+	this.ctx.overide = false
+	return this.Write(data)
 }
 
+func (this *ResponseBuilder) Write(data []byte) *ResponseBuilder {
+	if this.ctx.responseCode == 0 {
+		this.SetResponseCode(getDefaultResponseCode(this.ctx.request.Method))
 
-func(this *ResponseBuilder) LongPoll(delay int,producer func(interface{})interface{}) *ResponseBuilder{
+	}
+	if !this.ctx.dataHasBeenWritten {
+		//TODO: Check for content type set.......
+		this.writer().WriteHeader(this.ctx.responseCode)
+	}
 
-    return this
+	this.writer().Write(data)
+	this.ctx.dataHasBeenWritten = true
+	return this
 }
 
+
+func (this *ResponseBuilder) LongPoll(delay int, producer func(interface{}) interface{}) *ResponseBuilder {
+
+	return this
+}
 
 
 //Cache related
-func(this *ResponseBuilder) CachePublic() *ResponseBuilder{
-    this.setCache("public")
-    return this
+func (this *ResponseBuilder) CachePublic() *ResponseBuilder {
+	this.setCache("public")
+	return this
 }
-func(this *ResponseBuilder) CachePrivate() *ResponseBuilder{
-    this.setCache("private")
-    return this
+func (this *ResponseBuilder) CachePrivate() *ResponseBuilder {
+	this.setCache("private")
+	return this
 }
-func(this *ResponseBuilder) CacheNoCache() *ResponseBuilder{
-    this.setCache("no-cache")
-    return this
+func (this *ResponseBuilder) CacheNoCache() *ResponseBuilder {
+	this.setCache("no-cache")
+	return this
 }
-func(this *ResponseBuilder) CacheNoStore() *ResponseBuilder{
-    this.setCache("no-store")
-    return this
+func (this *ResponseBuilder) CacheNoStore() *ResponseBuilder {
+	this.setCache("no-store")
+	return this
 }
-func(this *ResponseBuilder) CacheNoTransform() *ResponseBuilder{
-    this.setCache("no-transform")
-    return this
+func (this *ResponseBuilder) CacheNoTransform() *ResponseBuilder {
+	this.setCache("no-transform")
+	return this
 }
-func(this *ResponseBuilder) CacheMustReval() *ResponseBuilder{
-    this.setCache("must-revalidate")
-    return this
+func (this *ResponseBuilder) CacheMustReval() *ResponseBuilder {
+	this.setCache("must-revalidate")
+	return this
 }
-func(this *ResponseBuilder) CacheProxyReval() *ResponseBuilder{
-    this.setCache("proxy-revalidate")
-    return this
+func (this *ResponseBuilder) CacheProxyReval() *ResponseBuilder {
+	this.setCache("proxy-revalidate")
+	return this
 }
-func(this *ResponseBuilder) CacheMaxAge(seconds int) *ResponseBuilder{
-    this.setCache("max-age = "+string(seconds))
-    return this
+func (this *ResponseBuilder) CacheMaxAge(seconds int) *ResponseBuilder {
+	this.setCache("max-age = " + strconv.Itoa(seconds))
+	return this
 }
-func(this *ResponseBuilder) CacheSMaxAge(seconds int) *ResponseBuilder{
-    this.setCache("s-maxage = "+string(seconds))
-    return this
+func (this *ResponseBuilder) CacheSMaxAge(seconds int) *ResponseBuilder {
+	this.setCache("s-maxage = " + strconv.Itoa(seconds))
+	return this
 }
-func(this *ResponseBuilder) CacheClearAllOptions() *ResponseBuilder{
-    this.writer().Header().Del("Cache-control")
-    return this
-}
-func(this *ResponseBuilder) ConnectionKeepAlive(seconds int) *ResponseBuilder{
-    this.writer().Header().Set("Connection", "keep-alive")
-    return this
-}
-func(this *ResponseBuilder) ConnectionClose() *ResponseBuilder{
-    this.writer().Header().Set("Connection", "close")
-    return this
-}
-func(this *ResponseBuilder) Location(location string) *ResponseBuilder{
-    this.writer().Header().Set("Location", location)
-    return this
-}
-func(this *ResponseBuilder) Created(location string) *ResponseBuilder{
-    this.ctx.responseCode =201
-    this.writer().Header().Set("Location", location)
-    return this
-}
-func(this *ResponseBuilder) MovedPermanently(location string) *ResponseBuilder{
-    this.ctx.responseCode =301
-    this.writer().Header().Set("Location", location)
-    return this
-}
-func(this *ResponseBuilder) Found(location string) *ResponseBuilder{
-    this.ctx.responseCode =302
-    this.writer().Header().Set("Location", location)
-    return this
-}
-func(this *ResponseBuilder) SeeOther(location string) *ResponseBuilder{
-    this.ctx.responseCode =303
-    this.writer().Header().Set("Location", location)
-    return this
-}
-func(this *ResponseBuilder) MovedTemporarily(location string) *ResponseBuilder{
-    this.ctx.responseCode =307
-    this.writer().Header().Set("Location", location)
-    return this
+func (this *ResponseBuilder) CacheClearAllOptions() *ResponseBuilder {
+	this.writer().Header().Del("Cache-control")
+	return this
 }
 
-func(this *ResponseBuilder) setCache(option string){
-    this.writer().Header().Add("Cache-control", option)
+
+func (this *ResponseBuilder) ConnectionKeepAlive() *ResponseBuilder {
+	this.writer().Header().Set("Connection", "keep-alive")
+	return this
+}
+func (this *ResponseBuilder) ConnectionClose() *ResponseBuilder {
+	this.writer().Header().Set("Connection", "close")
+	return this
+}
+func (this *ResponseBuilder) Location(location string) *ResponseBuilder {
+	this.writer().Header().Set("Location", location)
+	return this
+}
+func (this *ResponseBuilder) Created(location string) *ResponseBuilder {
+	this.ctx.responseCode = 201
+	this.writer().Header().Set("Location", location)
+	return this
+}
+func (this *ResponseBuilder) MovedPermanently(location string) *ResponseBuilder {
+	this.ctx.responseCode = 301
+	this.writer().Header().Set("Location", location)
+	return this
+}
+func (this *ResponseBuilder) Found(location string) *ResponseBuilder {
+	this.ctx.responseCode = 302
+	this.writer().Header().Set("Location", location)
+	return this
+}
+func (this *ResponseBuilder) SeeOther(location string) *ResponseBuilder {
+	this.ctx.responseCode = 303
+	this.writer().Header().Set("Location", location)
+	return this
+}
+func (this *ResponseBuilder) MovedTemporarily(location string) *ResponseBuilder {
+	this.ctx.responseCode = 307
+	this.writer().Header().Set("Location", location)
+	return this
+}
+
+func (this *ResponseBuilder) setCache(option string) {
+	this.writer().Header().Add("Cache-control", option)
 }

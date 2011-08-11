@@ -27,66 +27,133 @@ package gorest
 
 import (
 	"testing"
+	"bytes"
+	"json"
+	"strconv"
 )
 
 
-type User struct{
-    Id string
-    FirstName string
-    LastName string
-    Age int
-    Weight float32
+func TestInterfaceToBytes(t *testing.T) {
+
+	bytes, _ := interfaceToBytes(12345, "application/json")
+	AssertEqual(string(bytes), "12345", "Integer marshall", t)
+
+	bytes, _ = interfaceToBytes("Hello", "application/json")
+	AssertEqual(string(bytes), "Hello", "String marshall", t)
+
+	bytes, _ = interfaceToBytes(true, "application/json")
+	AssertEqual(string(bytes), "true", "Bool marshall", t)
+
+	bytes, _ = interfaceToBytes(36.6, "application/json")
+	AssertEqual(string(bytes), "36.6", "Float marshall", t)
+
+	bytes, _ = interfaceToBytes(-37, "application/json")
+	AssertEqual(string(bytes), "-37", "Uint marshall", t)
+
+	u := new(User)
+	u.FirstName = "David"
+	u.LastName = "Coperfield"
+	u.Age = 20
+
+	bytes, _ = interfaceToBytes(u, "application/json")
+	AssertEqual(string(bytes), `{"Id":"","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0}`, "Struct marshall", t)
+
+	userArr := make([]User, 0)
+	u2 := *u
+	u2.Age = 30
+	userArr = append(userArr, *u)
+	userArr = append(userArr, u2)
+	bytes, _ = interfaceToBytes(userArr, "application/json")
+	AssertEqual(string(bytes), `[{"Id":"","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0},{"Id":"","FirstName":"David","LastName":"Coperfield","Age":30,"Weight":0}]`, "Array marshall", t)
+
+	userMap := make(map[string]User, 0)
+	userMap["One"] = *u
+	userMap["Two"] = u2
+
+	bytes, _ = interfaceToBytes(userMap, "application/json")
+	AssertEqual(string(bytes), `{"One":{"Id":"","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0},"Two":{"Id":"","FirstName":"David","LastName":"Coperfield","Age":30,"Weight":0}}`, "Map marshall", t)
+
 }
 
-type Service struct{
-    RestService    "root=/serv/; consumes=application/json; produces=application/json"
+func TestBytesToI(t *testing.T) {
+	bully := true
+	i := 0
+	ui := -1
+	str := ""
+	fl := 34.5
 
-    usersByNameAndAge EndPoint "method=GET; path=/person/{FName:string}/{Age:int}; output=[]User"
+	byt := bytes.NewBufferString("36")
+	bytesToI(byt, &i, "")
+	AssertEqual(i, 36, "Integer unmarshall", t)
+
+	byt = bytes.NewBufferString("false")
+	bytesToI(byt, &bully, "")
+	AssertEqual(bully, false, "Bool unmarshall", t)
+
+	byt = bytes.NewBufferString("-12")
+	bytesToI(byt, &ui, "")
+	AssertEqual(ui, -12, "UInt unmarshall", t)
+
+	byt = bytes.NewBufferString("36.7787")
+	bytesToI(byt, &fl, "")
+	AssertEqual(fl, 36.7787, "Float unmarshall", t)
+
+	byt = bytes.NewBufferString("Hello")
+	bytesToI(byt, &str, "")
+	AssertEqual(str, "Hello", "String unmarshall", t)
+
+	u := new(User)
+	u.FirstName = "David"
+	u.LastName = "Coperfield"
+	u.Age = 20
+
+	by, _ := json.Marshal(u)
+
+	//Try single user
+	byt = bytes.NewBuffer(by)
+	//println("User",string(byt.Bytes()))
+	u2 := new(User)
+	if err := bytesToI(byt, u2, "application/json"); err != nil {
+		t.Error("Error", err.String())
+	}
+	AssertEqual(u2.Age, 20, "Struct unmarshall", t)
+	AssertEqual(u2.FirstName, "David", "Struct unmarshall", t)
+	AssertEqual(u2.LastName, "Coperfield", "Struct unmarshall", t)
+
+	//Now try users in array
+
+	byt = bytes.NewBufferString(`[{"Id":"1","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0},{"Id":"2","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0}]`)
+	userArr := make([]User, 0)
+
+	if err := bytesToI(byt, &userArr, "application/json"); err != nil {
+		t.Error("Error", err.String())
+	} else {
+		for pos, au := range userArr {
+			//println("User at pos:", pos," Data: ",au.FirstName,au.LastName,au.Id)
+			AssertEqual(au.Id, strconv.Itoa(pos+1), "Slice unmarshall", t)
+			AssertEqual(au.FirstName, "David", "Slice unmarshall", t)
+		}
+	}
+
+	//Now try maps
+	byt = bytes.NewBufferString(`{"One":{"Id":"One","FirstName":"Siya","LastName":"Dlamini","Age":29,"Weight":62},"Two":{"Id":"Two","FirstName":"Siya","LastName":"Dlamini","Age":29,"Weight":62}}`)
+	userMap := make(map[string]User, 0)
+
+	if err := bytesToI(byt, &userMap, "application/json"); err != nil {
+		t.Error("Error", err.String())
+	} else {
+		AssertEqual(userMap["One"].FirstName, "Siya", "Map Unmarshal", t)
+		AssertEqual(userMap["One"].LastName, "Dlamini", "Map Unmarshal", t)
+
+		AssertEqual(userMap["Two"].Id, "Two", "Map Unmarshal", t)
+		AssertEqual(userMap["Two"].Age, 29, "Map Unmarshal", t)
+	}
+
 }
 
-func(serv Service)    UsersByNameAndAge(FName string,Age int) []User{
-    users:=make([]User,0)
-    users=append(users,User{"user1",FName,"Soap",Age,89.7})
-    users=append(users,User{"user2",FName,"Soap2",Age,89.7})
-    return users
-}
 
-
-func TestServiceMetaData(t *testing.T){
-    meta:= prepServiceMetaData("root=/serv/; consumes=application/json; produces=application/xml",new(Service))
-
-    if meta.consumesMime != "application/json" {
-       t.Error("Parsed incorrectly: 'consumesMime'")
-    }
-    if meta.producesMime != "application/xml" {
-       t.Error("Parsed incorrectly: 'producesMime' ")
-    }
-    if meta.root != "/serv/" {
-       t.Error("Parsed incorrectly: root ")
-    }
-
-}
-
-func TestEndPointStruct(t *testing.T){
-    meta:=makeEndPointStruct("method=GET; path=/person/{FName:string}/{Age:int}; output=[]User","/serv/")
-
-    if meta.requestMethod != GET{
-       t.Error("Parsed incorrectly: request method ")
-    }
-    if meta.root != "serv/person/"{
-       t.Error("Parsed incorrectly: root ")
-    }
-
-    if meta.outputType == "User" && meta.outputTypeIsArray{
-    }else{
-       t.Error("Parsed incorrectly: return parameter ")
-    }
-
-    if meta.paramLen != 2{
-       t.Error("Parsed incorrectly: parameter length ")
-    }else if meta.params[0].name != "FName"  && meta.params[0].typeName != "User"{
-       t.Error("Parsed incorrectly: path parameter names and types")
-    }
-
-
+func AssertEqual(given interface{}, expecting interface{}, compared string, t *testing.T) {
+	if expecting != given {
+		t.Error("Fail Assert:", compared, " Expecting:", expecting, "; but is:", given)
+	}
 }

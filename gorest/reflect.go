@@ -138,7 +138,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 		}
 	}
 
-	if (methType.NumIn() - numInputIgnore) != ep.paramLen {
+	if (methType.NumIn() - numInputIgnore) != (ep.paramLen + len(ep.queryParams)){
 		cool = false
 	} else if methType.NumOut() != numOut {
 		cool = false
@@ -148,7 +148,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 			methVal := methType.In(1)
 			if ep.postdataTypeIsArray {
 				if methVal.Kind() == reflect.Slice {
-					methVal = methVal.Elem() //Only convert if it is mentioned as a slice in the tags, otherwise allow for failure panic
+					methVal = methVal.Elem() 
 				} else {
 					cool = false
 					return
@@ -168,12 +168,21 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 				return
 			}
 		}
-		//Check the rest of the input param types
-		for i := numInputIgnore; i < methType.NumIn(); i++ {
+		//Check the rest of the input path param types
+		i:=numInputIgnore
+		for  ; i < methType.NumIn() && (i-numInputIgnore < ep.paramLen); i++ {
 			if methType.In(i).Name() != ep.params[i-numInputIgnore].typeName {
 				cool = false
 				break
 			}
+		}
+		//Check the rest of the input Query param types
+		for j:=0; i < methType.NumIn() && (j < len(ep.queryParams)); i++  {
+			if methType.In(i).Name() != ep.queryParams[j].typeName {
+				cool = false
+				break
+			}
+			j++
 		}
 		//Check output param type.
 		if numOut == 1 {
@@ -233,11 +242,12 @@ func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f refl
 		suffix = "# with no return parameters."
 	}
 	for i := 0; i < ep.paramLen; i++ {
-		str += ep.params[i].name + " " + ep.params[i].typeName
-		if (i + 1) < ep.paramLen {
-			str += ","
-		}
+		str += ep.params[i].name + " " + ep.params[i].typeName +","
 	}
+	for i := 0; i < len(ep.queryParams); i++ {
+		str += ep.queryParams[i].name + " " + ep.queryParams[i].typeName +","
+	}
+	str = strings.TrimRight(str,",")
 	return "No matching Method found for EndPoint:[" + f.Name + "],type:[" + ep.requestMethod + "] . Expecting: #func(serv " + t.Name() + ") " + methodName + "(" + str + ")" + suffix
 }
 
@@ -259,12 +269,6 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 	targetMethod := servVal.Type().Method(ep.methodNumberInParent)
 	//For POST and PUT, make and add the first "postdata" argument to the argument list
 	if ep.requestMethod == POST || ep.requestMethod == PUT {
-		//Make a new value from the methods postdata parameter type. The type validity should be checked at bootstrap time.
-		//This parameter type is in position 1
-		postdatVal := reflect.New(targetMethod.Type.In(1))
-		if postdatVal.Kind() == reflect.Ptr {
-			postdatVal = postdatVal.Elem()
-		}
 
 		//Get postdata here
 		//TODO: Also check if this is a multipart post and handle as required.
@@ -272,9 +276,9 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 		io.Copy(buf, context.request.Body)
 		body := buf.String()
 
-		//        println("This is the body of the post:",body)
+		//println("This is the body of the post:",body)
 
-		if v, state := makeArg(ep.postdataType, body, postdatVal.Type(), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+		if v, state := makeArg(body, targetMethod.Type.In(1), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
 			arrArgs = append(arrArgs, v)
 		} else {
 			return nil, state
@@ -287,16 +291,38 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 			startIndex = 2
 		}
 
-		//Now add the rest of the arguments to the argument list and then call the method
+		//Now add the rest of the PATH arguments to the argument list and then call the method
 		// GET and DELETE will only need these arguments, not the "postdata" one in their method calls
-		for _, arg := range context.args {
-			if v, state := makeArg(arg.parameter.typeName, arg.data, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+		for _,par:= range ep.params{
+			dat:=""
+			if str,found:= context.args[par.name];found{
+				dat = str
+			}
+			
+			if v, state := makeArg(dat, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
 				arrArgs = append(arrArgs, v)
 			} else {
 				return nil, state
 			}
 			startIndex++
 		}
+		//Query arguments are not compulsory on query, so the caller may ommit them, in which case we send a zero value f its type to the method. 
+		//Also they may be sent through in any order.
+		for _,par:= range ep.queryParams{
+			dat:=""
+			if str,found:= context.queryArgs[par.name];found{
+				dat = str
+			}
+			
+			if v, state := makeArg(dat, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+				arrArgs = append(arrArgs, v)
+			} else {
+				return nil, state
+			}
+			
+			startIndex++
+		}
+
 
 		//Now call the actual method with the data
 		ret := servVal.Method(ep.methodNumberInParent).Call(arrArgs)
@@ -306,7 +332,7 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 			if bytarr, err := interfaceToBytes(ret[0].Interface(), servMeta.producesMime); err == nil {
 				return bytarr, restStatus{http.StatusOK, ""}
 			} else {
-				//This is an internal error with the registered not being able to marshal internal structs
+				//This is an internal error with the registered marshaller not being able to marshal internal structs
 				return nil, restStatus{http.StatusInternalServerError, "Internal server error."}
 			}
 		} else {
@@ -320,10 +346,15 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 	return nil, restStatus{http.StatusInternalServerError, "Internal server error."}
 }
 
-func makeArg(typeName string, data string, template reflect.Type, mime string) (reflect.Value, restStatus) {
+func makeArg(data string, template reflect.Type, mime string) (reflect.Value, restStatus) {
 	i := reflect.New(template).Interface()
+	
+	if data ==""{
+		return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, ""}
+	}
+	
+	
 	buf := bytes.NewBufferString(data)
-
 	err := bytesToI(buf, i, mime)
 
 	if err != nil {

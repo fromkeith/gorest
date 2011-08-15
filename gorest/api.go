@@ -46,7 +46,8 @@ func (serv RestService) ResponseBuilder() *ResponseBuilder {
 type Context struct {
 	writer  http.ResponseWriter
 	request *http.Request
-	args    []argumentData
+	args    map[string]string
+	queryArgs    map[string]string
 
 	//Response flags
 	overide            bool

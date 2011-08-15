@@ -143,7 +143,8 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 }
 func parseParams(e *endPointStruct) {
 	e.signiture = strings.Trim(e.signiture, "/")
-	e.params = make(map[int]param, 0)
+	e.params = make([]param, 0)
+	e.queryParams = make([]param, 0)
 
 	i := strings.Index(e.signiture, "{")
 	if i > 0 {
@@ -151,37 +152,58 @@ func parseParams(e *endPointStruct) {
 	} else {
 		e.root = e.signiture
 	}
+	
+	
+	pathPart:=e.signiture
+	queryPart:=""
+	
+	
+	if i:=strings.Index(e.signiture,"?");i!=-1{
+		pathPart=e.signiture[:i]
+		queryPart=e.signiture[i+1:]
+		
+		//Extract Query Parameters
+		
+		for pos,str1:= range strings.Split(queryPart, "&"){
+			if strings.HasPrefix(str1, "{") && strings.HasSuffix(str1, "}") {
+				parName,typeName := getVarTypePair(str1,e.signiture)
+				
+				for _, par := range e.queryParams {
+					if par.name == parName {
+						panic("Duplicate Query Parameter name(" + parName + ") in REST path: " + e.signiture)
+					}
+				}
+				//e.queryParams[len(e.queryParams)] = param{pos, parName, typeName}
+				e.queryParams = append(e.queryParams,param{pos, parName, typeName})
+			}else{
+				panic("Please check that your Query Parameters are configured correctly for endpoint: " +e.signiture)
+			}
+		}
+	}
 
-	//Extract path parameters
-	for pos, str1 := range strings.Split(e.signiture, "/") {
+	//Extract Path Parameters
+	for pos, str1 := range strings.Split(pathPart, "/") {
 		e.signitureLen++
-		if strings.HasPrefix(str1, "{") && strings.HasSuffix(str1, "}") {
+		if strings.HasPrefix(str1, "{") && strings.HasSuffix(str1, "}") { //This just ensures we re dealing with a varibale not normal path.
 
-			temp := strings.Trim(str1, "{}")
-			ind := 0
-			if ind = strings.Index(temp, ":"); ind == -1 {
-				panic("Please ensure that parameter names(" + temp + ") have associated types in REST path: " + e.signiture)
-			}
-			parName := temp[:ind]
-			typeName := temp[ind+1:]
-
-			if !isAllowedParamType(typeName) {
-				panic("Type " + typeName + " is not allowed for path-parameters in REST path: " + e.signiture)
-			}
+		
+			parName,typeName := getVarTypePair(str1,e.signiture)
+		
 
 			for _, par := range e.params {
 				if par.name == parName {
-					panic("Duplicate field name(" + parName + ") in REST path: " + e.signiture)
+					panic("Duplicate Path Parameter name(" + parName + ") in REST path: " + e.signiture)
 				}
 			}
 
-			e.params[e.paramLen] = param{pos, parName, typeName}
+			//e.params[e.paramLen] = param{pos, parName, typeName}
+			e.params = append(e.params,param{pos, parName, typeName})
 			e.paramLen++
 		}
 	}
 
-	if ep, there := _manager().endpoints[e.signiture]; there && ep.requestMethod == e.requestMethod {
-		panic("Endpoint already registered: " + e.signiture)
+	if ep, there := _manager().endpoints[pathPart]; there && ep.requestMethod == e.requestMethod {
+		panic("Endpoint already registered: " + pathPart)
 	}
 
 	for _, ep := range _manager().endpoints {
@@ -190,6 +212,23 @@ func parseParams(e *endPointStruct) {
 			panic("Can not register two endpoints with same request-method(" + ep.requestMethod + "), same root and same amount of parameters: " + e.signiture)
 		}
 	}
+}
+
+func getVarTypePair(part string,sign string)(parName string,typeName string){
+	
+	temp := strings.Trim(part, "{}")
+	ind := 0
+	if ind = strings.Index(temp, ":"); ind == -1 {
+		panic("Please ensure that parameter names(" + temp + ") have associated types in REST path: " + sign)
+	}
+	parName = temp[:ind]
+	typeName = temp[ind+1:]
+
+	if !isAllowedParamType(typeName) {
+		panic("Type " + typeName + " is not allowed for Path/Query-parameters in REST path: " + sign)
+	}
+	
+	return
 }
 
 func isAllowedParamType(typeName string) bool {
@@ -202,29 +241,58 @@ func isAllowedParamType(typeName string) bool {
 }
 
 
-func getEndPointByUrl(method string, url string) (endPointStruct, []argumentData, bool) {
-
-	url = strings.Trim(url, "/")
-	totalParts := strings.Count(url, "/")
+func getEndPointByUrl(method string, url string) (endPointStruct, map[string]string, map[string]string, bool) {
+	//println("Getting:",url)
+	pathPart:=url
+	queryPart:=""
+	
+	
+	if i:=strings.Index(url,"?");i!=-1{
+		pathPart=url[:i]
+		queryPart=url[i+1:]
+	}
+	
+	pathPart = strings.Trim(pathPart, "/")
+	totalParts := strings.Count(pathPart, "/")
 	totalParts++
 
 	epRet := new(endPointStruct)
-	adarr := make([]argumentData, 0)
-	ok := false
+	pathArgs := make(map[string]string, 0)
+	queryArgs := make(map[string]string, 0)
+	
+	
+	
 	for _, ep := range _manager().endpoints {
-
-		if strings.Contains(url, ep.root) && ep.signitureLen == totalParts && ep.requestMethod == method { //TODO: Make sure it starts with
-			//           log.Println("End point found: ",ep.requestMethod,ep.root,ep.signiture,ep.signitureLen,url,ep.paramLen)
+		//println("Path part: ",pathPart, ep.root,ep.signitureLen,totalParts)
+		if strings.Contains(pathPart, ep.root) && ep.signitureLen == totalParts && ep.requestMethod == method { //TODO: Make sure it starts with
+			//log.Println("End point found: ",ep.requestMethod,ep.root,ep.signiture,ep.signitureLen,url,ep.paramLen)
+			
+			//Extract Parameter Arguments
 			for _, par := range ep.params {
-				for upos, str1 := range strings.Split(url, "/") {
+				for upos, str1 := range strings.Split(pathPart, "/") {
 					if par.positionInPath == upos {
-						adarr = append(adarr, argumentData{par, strings.Trim(str1, " ")})
+						pathArgs[par.name] = strings.Trim(str1, " ")
 					}
 				}
 			}
-			ok = true
-			return ep, adarr, ok
+			
+			//Extract Query Arguments: These are optional in the query, so some or all of them might not be there.
+			//Also, if they are there, they do not have to be in the same order they were sepcified in on the declaration signature.
+			for _, str1 := range strings.Split(queryPart, "&") {
+				if i:=strings.Index(str1,"=");i!=-1{
+					pName := str1[:i]
+					dataString :=str1[i+1:]
+					for _, par := range ep.queryParams{
+						if par.name == pName{
+							queryArgs[pName] =strings.Trim(dataString, " ")
+						}
+					}
+				}
+			}
+			
+			return ep, pathArgs,queryArgs, true //Path found
 		}
 	}
-	return *epRet, adarr, ok
+	
+	return *epRet, pathArgs,queryArgs, false //Path not found
 }

@@ -48,10 +48,12 @@ type endPointStruct struct {
 	requestMethod string
 	signiture     string
 	root          string
-	params        map[int]param //path parameter name and position
+	params        []param //path parameter name and position
+	queryParams   []param
 
 	signitureLen int
 	paramLen     int
+	
 
 	inputMime         string
 	outputType        string
@@ -116,12 +118,13 @@ func RegisterService(h interface{}) {
 }
 
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if ep, args, found := getEndPointByUrl(r.Method, r.RawURL); found {
+	if ep, args,queryArgs, found := getEndPointByUrl(r.Method, r.RawURL); found {
 
 		ctx := new(Context)
 		ctx.writer = w
 		ctx.request = r
 		ctx.args = args
+		ctx.queryArgs = queryArgs
 
 		data, state := prepareServe(ctx, ep)
 
@@ -166,7 +169,7 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		//        println("Could not serve page: ", r.RawURL)
+		println("Could not serve page: ", r.RawURL)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("The resource in the requested path could not be found."))
 	}

@@ -45,7 +45,7 @@ type User struct {
 type Service struct {
 	RestService `root:"/serv/" consumes:"application/json" produces:"application/json"`
 
-	getString      EndPoint `method:"GET" path:"/string/{Bool:bool}/{Int:int}" output:"string"`
+	getString      EndPoint `method:"GET" path:"/string/{Bool:bool}/{Int:int}?{flow:int}&{name:string}" output:"string"`
 	getInteger     EndPoint `method:"GET" path:"/int/{Bool:bool}/{Int:int}" output:"int"`
 	getBool        EndPoint `method:"GET" path:"/bool/{Bool:bool}/{Int:int}" output:"bool"`
 	getFloat       EndPoint `method:"GET" path:"/float/{Bool:bool}/{Int:int}" output:"float64"`
@@ -87,8 +87,8 @@ func (serv Service) PostArrayStruct(posted []User, Bool bool, Int int) {
 	println("posted Array Two:", posted[1].FirstName, posted[1].LastName, posted[1].Id)
 }
 
-func (serv Service) GetString(Bool bool, Int int) string {
-	return "Hello" + strconv.Btoa(Bool) + strconv.Itoa(Int)
+func (serv Service) GetString(Bool bool, Int int, Flow int, Name string) string {
+	return "Hello" + strconv.Btoa(Bool) + strconv.Itoa(Int) +"/" +Name + strconv.Itoa(Flow)
 }
 func (serv Service) GetInteger(Bool bool, Int int) int {
 	return Int - 5
@@ -130,12 +130,24 @@ func TestInit(t *testing.T) {
 	rb, _ := NewRequestBuilder()
 	//GET string
 	str := "Hell"
-	rb.Get(&str, "http://localhost:8787/serv/string/true/5")
-	AssertEqual(str, "Hellotrue5", "Get string", t)
+	rb.Get(&str, "http://localhost:8787/serv/string/true/5?name=Nameed&flow=6")
+	AssertEqual(str, "Hellotrue5/Nameed6", "Get string", t)
+	
+	rb.Get(&str, "http://localhost:8787/serv/string/true/5?name=Nameed")
+	AssertEqual(str, "Hellotrue5/Nameed0", "Get string", t)
+	
+	rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow=6")
+	AssertEqual(str, "Hellotrue5/6", "Get string", t)
+	
+	rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow=")
+	AssertEqual(str, "Hellotrue5/0", "Get string", t)
+	
+	rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow")
+	AssertEqual(str, "Hellotrue5/0", "Get string", t)
 
 	//GET Int
 	inter := -2
-	rb.Get(&inter, "http://localhost:8787/serv/int/true/2")
+	rb.Get(&inter, "http://localhost:8787/serv/int/true/2?name=Nameed&flow=6") //The query aurguments here just to be ignored
 	AssertEqual(inter, -3, "Get int", t)
 
 	//GET Bool
@@ -179,19 +191,19 @@ func TestInit(t *testing.T) {
 	mi := make(map[string]int, 0)
 	mi["One"] = 111
 	mi["Two"] = 222
-	rb.Post(&mi, "http://localhost:8787/serv/mapint/true/5")
+	rb.Post(mi, "http://localhost:8787/serv/mapint/true/5")
 
 	//POST Map Struct
 	mu := make(map[string]User, 0)
 	mu["One"] = User{"111", "David1", "Gueta1", 35, 123}
 	mu["Two"] = User{"222", "David2", "Gueta2", 35, 123}
-	rb.Post(&mu, "http://localhost:8787/serv/mapstruct/true/5")
+	rb.Post(mu, "http://localhost:8787/serv/mapstruct/true/5")
 
 	//POST Array Struct
 	users := make([]User, 0)
 	users = append(users, User{"user1", "Joe", "Soap", 19, 89.7})
 	users = append(users, User{"user2", "Jose", "Soap2", 15, 89.7})
-	rb.Post(&users, "http://localhost:8787/serv/arraystruct/true/5")
+	rb.Post(users, "http://localhost:8787/serv/arraystruct/true/5")
 
 }
 

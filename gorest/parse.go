@@ -145,6 +145,7 @@ func parseParams(e *endPointStruct) {
 	e.signiture = strings.Trim(e.signiture, "/")
 	e.params = make([]param, 0)
 	e.queryParams = make([]param, 0)
+	e.nonParamPathPart = make(map[int]string,0)
 
 	i := strings.Index(e.signiture, "{")
 	if i > 0 {
@@ -185,31 +186,43 @@ func parseParams(e *endPointStruct) {
 	for pos, str1 := range strings.Split(pathPart, "/") {
 		e.signitureLen++
 		if strings.HasPrefix(str1, "{") && strings.HasSuffix(str1, "}") { //This just ensures we re dealing with a varibale not normal path.
-
-		
+					
 			parName,typeName := getVarTypePair(str1,e.signiture)
-		
-
+			
+			if parName == "..."{
+				e.isVariableLength = true
+				parName,typeName := getVarTypePair(str1,e.signiture)
+				e.params = append(e.params,param{pos, parName, typeName})
+				e.paramLen++
+				break
+			}
 			for _, par := range e.params {
 				if par.name == parName {
 					panic("Duplicate Path Parameter name(" + parName + ") in REST path: " + e.signiture)
 				}
 			}
-
-			//e.params[e.paramLen] = param{pos, parName, typeName}
+			
 			e.params = append(e.params,param{pos, parName, typeName})
 			e.paramLen++
+		}else{
+			e.nonParamPathPart[pos] = str1
 		}
 	}
-
-	if ep, there := _manager().endpoints[pathPart]; there && ep.requestMethod == e.requestMethod {
-		panic("Endpoint already registered: " + pathPart)
+	
+	if e.isVariableLength && e.paramLen>1{
+		panic("Variable length endpoints can only have one parameter declaration: "+pathPart)
 	}
 
-	for _, ep := range _manager().endpoints {
-		if ep.root == e.root && ep.signitureLen == e.signitureLen && ep.requestMethod == e.requestMethod {
 
-			panic("Can not register two endpoints with same request-method(" + ep.requestMethod + "), same root and same amount of parameters: " + e.signiture)
+	for key, ep := range _manager().endpoints {
+		if ep.root == e.root && ep.signitureLen == e.signitureLen && ep.requestMethod == e.requestMethod {
+			panic("Can not register two endpoints with same request-method(" + ep.requestMethod + "), same root and same amount of parameters: " + e.signiture +" VS " + ep.signiture)
+		}
+		if ep.requestMethod == e.requestMethod && pathPart == key{
+			panic("Endpoint already registered: " + pathPart)
+		}
+		if e.isVariableLength && (strings.Index(ep.root, e.root) ==  0 || strings.Index(e.root, ep.root) ==  0){
+			panic("Variable length endpoints can only be mounted on a unique root. Root already used: " + ep.root)
 		}
 	}
 }
@@ -261,20 +274,44 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 	queryArgs := make(map[string]string, 0)
 	
 	
-	
-	for _, ep := range _manager().endpoints {
-		//println("Path part: ",pathPart, ep.root,ep.signitureLen,totalParts)
-		if strings.Contains(pathPart, ep.root) && ep.signitureLen == totalParts && ep.requestMethod == method { //TODO: Make sure it starts with
-			//log.Println("End point found: ",ep.requestMethod,ep.root,ep.signiture,ep.signitureLen,url,ep.paramLen)
-			
-			//Extract Parameter Arguments
-			for _, par := range ep.params {
+	var ep *endPointStruct
+	for _, loopEp := range _manager().endpoints {
+		//println("Path part: ",pathPart, loopEp.root,loopEp.signitureLen,totalParts)
+		if loopEp.isVariableLength && (strings.Index(pathPart, loopEp.root)==0){
+			ep =&loopEp
+
+			for upos, str1 := range strings.Split(pathPart[len(loopEp.root):], "/"){
+				pathArgs[string(upos)] = strings.Trim(str1, " ")
+			}
+		}
+		if (strings.Index(pathPart, loopEp.root)==0) && loopEp.signitureLen == totalParts && loopEp.requestMethod == method {
+			ep =&loopEp
+			//We first make sure that the other parts of the path that are not parameters do actully match with the signature.
+			//If not we exit. We do not have to cary on looking since we only allow one registration per root and length.
+			for pos,name:= range ep.nonParamPathPart{
 				for upos, str1 := range strings.Split(pathPart, "/") {
-					if par.positionInPath == upos {
-						pathArgs[par.name] = strings.Trim(str1, " ")
+					if upos == pos {
+						if name != str1{
+							//println("Not found:",pathPart)
+							return *epRet, pathArgs,queryArgs, false //Path not found
+						}
+						break
 					}
 				}
 			}
+			//Extract Path Arguments
+			for _, par := range ep.params {
+				for upos, str1 := range strings.Split(pathPart, "/") {
+					
+					if par.positionInPath == upos {
+						pathArgs[par.name] = strings.Trim(str1, " ")
+						break
+					}
+				}
+			}
+		}
+		
+		if ep!=nil{
 			
 			//Extract Query Arguments: These are optional in the query, so some or all of them might not be there.
 			//Also, if they are there, they do not have to be in the same order they were sepcified in on the declaration signature.
@@ -285,12 +322,13 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 					for _, par := range ep.queryParams{
 						if par.name == pName{
 							queryArgs[pName] =strings.Trim(dataString, " ")
+							break
 						}
 					}
 				}
 			}
 			
-			return ep, pathArgs,queryArgs, true //Path found
+			return *ep, pathArgs,queryArgs, true //Path found
 		}
 	}
 	

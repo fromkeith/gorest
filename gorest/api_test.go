@@ -46,7 +46,8 @@ type Service struct {
 	RestService `root:"/serv/" consumes:"application/json" produces:"application/json"`
 
 	getString      EndPoint `method:"GET" path:"/string/{Bool:bool}/{Int:int}?{flow:int}&{name:string}" output:"string"`
-	getInteger     EndPoint `method:"GET" path:"/int/{Bool:bool}/{Int:int}" output:"int"`
+	
+	getInteger     EndPoint `method:"GET" path:"/int/{Bool:bool}/int/yes/{Int:int}/for" output:"int"`
 	getBool        EndPoint `method:"GET" path:"/bool/{Bool:bool}/{Int:int}" output:"bool"`
 	getFloat       EndPoint `method:"GET" path:"/float/{Bool:bool}/{Int:int}" output:"float64"`
 	getMapInt      EndPoint `method:"GET" path:"/mapint/{Bool:bool}/{Int:int}" output:"map[string]int"`
@@ -60,6 +61,15 @@ type Service struct {
 	postMapInt      EndPoint `method:"POST" path:"/mapint/{Bool:bool}/{Int:int}" postdata:"map[string]int" `
 	postMapStruct   EndPoint `method:"POST" path:"/mapstruct/{Bool:bool}/{Int:int}" postdata:"map[string]User" `
 	postArrayStruct EndPoint `method:"POST" path:"/arraystruct/{Bool:bool}/{Int:int}" postdata:"[]User"`
+	
+	getVarArgs 		EndPoint `method:"GET" path:"/var/{...:int}" output:"string"`
+}
+func (serv Service) GetVarArgs(v ...int) string {
+	str:="Start"
+	for _,i:= range v{
+		str+=strconv.Itoa(i)
+	}
+	return str +"End"
 }
 
 func (serv Service) PostString(posted string, Bool bool, Int int) {
@@ -144,11 +154,16 @@ func TestInit(t *testing.T) {
 	
 	rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow")
 	AssertEqual(str, "Hellotrue5/0", "Get string", t)
+	
+	rb.Get(&str, "http://localhost:8787/serv/var/1/2/3/4/5/6/7/8")
+	AssertEqual(str, "Start12345678End", "Call var args", t)
 
 	//GET Int
 	inter := -2
-	rb.Get(&inter, "http://localhost:8787/serv/int/true/2?name=Nameed&flow=6") //The query aurguments here just to be ignored
+	rb.Get(&inter, "http://localhost:8787/serv/int/true/int/yes/2/for?name=Nameed&flow=6") //The query aurguments here just to be ignored
 	AssertEqual(inter, -3, "Get int", t)
+	
+	
 
 	//GET Bool
 	bl := true

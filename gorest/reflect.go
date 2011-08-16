@@ -93,7 +93,7 @@ func mapFieldsToMethods(t reflect.Type, f reflect.StructField, typeFullName stri
 		for i := 0; i < t.NumMethod(); i++ {
 			m := t.Method(i)
 			if methodName == m.Name {
-				method = m //As long as the name is the same, we know we have found the method, since has no overloading
+				method = m //As long as the name is the same, we know we have found the method, since go has no overloading
 				methFound = true
 				methodNumberInParent = i
 				break
@@ -138,7 +138,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 		}
 	}
 
-	if (methType.NumIn() - numInputIgnore) != (ep.paramLen + len(ep.queryParams)){
+	if (methType.NumIn() - numInputIgnore) != (ep.paramLen + len(ep.queryParams)) {
 		cool = false
 	} else if methType.NumOut() != numOut {
 		cool = false
@@ -148,7 +148,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 			methVal := methType.In(1)
 			if ep.postdataTypeIsArray {
 				if methVal.Kind() == reflect.Slice {
-					methVal = methVal.Elem() 
+					methVal = methVal.Elem()
 				} else {
 					cool = false
 					return
@@ -168,16 +168,30 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 				return
 			}
 		}
-		//Check the rest of the input path param types
-		i:=numInputIgnore
-		for  ; i < methType.NumIn() && (i-numInputIgnore < ep.paramLen); i++ {
-			if methType.In(i).Name() != ep.params[i-numInputIgnore].typeName {
+		//Check the rest of input path param types
+		i := numInputIgnore
+		if ep.isVariableLength {
+			if methType.NumIn() != numInputIgnore + 1 + len(ep.queryParams) {
 				cool = false
-				break
+			}
+			cool = false
+			if methType.In(i).Kind() == reflect.Slice { //Variable args Slice
+				if methType.In(i).Elem().Name() == ep.params[0].typeName { //Check the correct type for the Slice
+					cool = true
+				}
+			}
+
+		} else {
+			for ; i < methType.NumIn() && (i-numInputIgnore < ep.paramLen); i++ {
+				if methType.In(i).Name() != ep.params[i-numInputIgnore].typeName {
+					cool = false
+					break
+				}
 			}
 		}
-		//Check the rest of the input Query param types
-		for j:=0; i < methType.NumIn() && (j < len(ep.queryParams)); i++  {
+
+		//Check the input Query param types
+		for j := 0; i < methType.NumIn() && (j < len(ep.queryParams)); i++ {
 			if methType.In(i).Name() != ep.queryParams[j].typeName {
 				cool = false
 				break
@@ -241,13 +255,18 @@ func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f refl
 	if ep.requestMethod == POST || ep.requestMethod == PUT || ep.requestMethod == DELETE {
 		suffix = "# with no return parameters."
 	}
-	for i := 0; i < ep.paramLen; i++ {
-		str += ep.params[i].name + " " + ep.params[i].typeName +","
+	if ep.isVariableLength {
+		str += "varArgs ..." + ep.params[0].typeName + ","
+	} else {
+		for i := 0; i < ep.paramLen; i++ {
+			str += ep.params[i].name + " " + ep.params[i].typeName + ","
+		}
 	}
+
 	for i := 0; i < len(ep.queryParams); i++ {
-		str += ep.queryParams[i].name + " " + ep.queryParams[i].typeName +","
+		str += ep.queryParams[i].name + " " + ep.queryParams[i].typeName + ","
 	}
-	str = strings.TrimRight(str,",")
+	str = strings.TrimRight(str, ",")
 	return "No matching Method found for EndPoint:[" + f.Name + "],type:[" + ep.requestMethod + "] . Expecting: #func(serv " + t.Name() + ") " + methodName + "(" + str + ")" + suffix
 }
 
@@ -285,47 +304,69 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 		}
 	}
 
-	if len(context.args) == ep.paramLen {
+	if len(context.args) == ep.paramLen || (ep.isVariableLength && ep.paramLen==1){
 		startIndex := 1
 		if ep.requestMethod == POST || ep.requestMethod == PUT {
 			startIndex = 2
 		}
+		
+		if ep.isVariableLength{
+			varSliceArgs := reflect.New(targetMethod.Type.In(startIndex)).Elem() 
+			for ij:=0; ij < len(context.args);ij++{
+				dat:= context.args[string(ij)]
 
-		//Now add the rest of the PATH arguments to the argument list and then call the method
-		// GET and DELETE will only need these arguments, not the "postdata" one in their method calls
-		for _,par:= range ep.params{
-			dat:=""
-			if str,found:= context.args[par.name];found{
-				dat = str
+				if v, state := makeArg(dat, targetMethod.Type.In(startIndex).Elem(), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+					varSliceArgs = reflect.Append(varSliceArgs,v)
+				}else {
+					return nil, state
+				}
+			}
+			arrArgs = append(arrArgs, varSliceArgs)
+		}else{
+			//Now add the rest of the PATH arguments to the argument list and then call the method
+			// GET and DELETE will only need these arguments, not the "postdata" one in their method calls
+			for _, par := range ep.params {
+				dat := ""
+				if str, found := context.args[par.name]; found {
+					dat = str
+				}
+	
+				if v, state := makeArg(dat, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+					arrArgs = append(arrArgs, v)
+				} else {
+					return nil, state
+				}
+				startIndex++
 			}
 			
-			if v, state := makeArg(dat, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
-				arrArgs = append(arrArgs, v)
-			} else {
-				return nil, state
-			}
-			startIndex++
 		}
+
+		
 		//Query arguments are not compulsory on query, so the caller may ommit them, in which case we send a zero value f its type to the method. 
 		//Also they may be sent through in any order.
-		for _,par:= range ep.queryParams{
-			dat:=""
-			if str,found:= context.queryArgs[par.name];found{
+		for _, par := range ep.queryParams {
+			dat := ""
+			if str, found := context.queryArgs[par.name]; found {
 				dat = str
 			}
-			
+
 			if v, state := makeArg(dat, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
 				arrArgs = append(arrArgs, v)
 			} else {
 				return nil, state
 			}
-			
+
 			startIndex++
 		}
 
-
 		//Now call the actual method with the data
-		ret := servVal.Method(ep.methodNumberInParent).Call(arrArgs)
+		var ret []reflect.Value
+		if ep.isVariableLength{
+			ret = servVal.Method(ep.methodNumberInParent).CallSlice(arrArgs)
+		}else{
+			ret = servVal.Method(ep.methodNumberInParent).Call(arrArgs)
+		}
+		
 
 		if len(ret) == 1 { //This is when we have just called a GET
 			//At this stage we should be ready to write the response to client
@@ -348,12 +389,11 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 
 func makeArg(data string, template reflect.Type, mime string) (reflect.Value, restStatus) {
 	i := reflect.New(template).Interface()
-	
-	if data ==""{
+
+	if data == "" {
 		return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, ""}
 	}
-	
-	
+
 	buf := bytes.NewBufferString(data)
 	err := bytesToI(buf, i, mime)
 

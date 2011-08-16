@@ -28,7 +28,6 @@ package gorest
 import (
 	"http"
 	"strconv"
-
 )
 
 type GoRestService interface {
@@ -44,25 +43,26 @@ const (
 )
 
 type endPointStruct struct {
-	name          string
-	requestMethod string
-	signiture     string
-	root          string
-	params        []param //path parameter name and position
-	queryParams   []param
+	name             string
+	requestMethod    string
+	signiture        string
+	root             string
+	nonParamPathPart map[int]string
+	params           []param //path parameter name and position
+	queryParams      []param
 
 	signitureLen int
 	paramLen     int
-	
 
 	inputMime         string
 	outputType        string
 	outputTypeIsArray bool
 	outputTypeIsMap   bool
-	
-	postdataType      string
+
+	postdataType        string
 	postdataTypeIsArray bool
 	postdataTypeIsMap   bool
+	isVariableLength	bool
 
 	parentTypeName       string
 	methodNumberInParent int
@@ -118,7 +118,7 @@ func RegisterService(h interface{}) {
 }
 
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if ep, args,queryArgs, found := getEndPointByUrl(r.Method, r.RawURL); found {
+	if ep, args, queryArgs, found := getEndPointByUrl(r.Method, r.RawURL); found {
 
 		ctx := new(Context)
 		ctx.writer = w
@@ -207,7 +207,6 @@ func ServeStandAlone(port int) {
 func _manager() *manager {
 	return restManager
 }
-
 
 
 func getDefaultResponseCode(method string) int {

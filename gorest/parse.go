@@ -221,7 +221,7 @@ func parseParams(e *endPointStruct) {
 		if ep.requestMethod == e.requestMethod && pathPart == key{
 			panic("Endpoint already registered: " + pathPart)
 		}
-		if e.isVariableLength && (strings.Index(ep.root, e.root) ==  0 || strings.Index(e.root, ep.root) ==  0){
+		if e.isVariableLength && (strings.Index(ep.root, e.root) ==  0 || strings.Index(e.root, ep.root) ==  0) && ep.requestMethod == e.requestMethod{
 			panic("Variable length endpoints can only be mounted on a unique root. Root already used: " + ep.root)
 		}
 	}
@@ -277,7 +277,7 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 	var ep *endPointStruct
 	for _, loopEp := range _manager().endpoints {
 		//println("Path part: ",pathPart, loopEp.root,loopEp.signitureLen,totalParts)
-		if loopEp.isVariableLength && (strings.Index(pathPart, loopEp.root)==0){
+		if loopEp.isVariableLength && (strings.Index(pathPart, loopEp.root)==0) && loopEp.requestMethod == method{
 			ep =&loopEp
 
 			for upos, str1 := range strings.Split(pathPart[len(loopEp.root):], "/"){

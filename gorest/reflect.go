@@ -163,7 +163,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 				}
 			}
 
-			if methVal.Name() != ep.postdataType {
+			if !typeNamesEqual(methVal,ep.postdataType) {
 				cool = false
 				return
 			}
@@ -176,14 +176,14 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 			}
 			cool = false
 			if methType.In(i).Kind() == reflect.Slice { //Variable args Slice
-				if methType.In(i).Elem().Name() == ep.params[0].typeName { //Check the correct type for the Slice
+				if typeNamesEqual(methType.In(i).Elem(), ep.params[0].typeName) { //Check the correct type for the Slice
 					cool = true
 				}
 			}
 
 		} else {
 			for ; i < methType.NumIn() && (i-numInputIgnore < ep.paramLen); i++ {
-				if methType.In(i).Name() != ep.params[i-numInputIgnore].typeName {
+				if !typeNamesEqual(methType.In(i),ep.params[i-numInputIgnore].typeName) {
 					cool = false
 					break
 				}
@@ -192,7 +192,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 
 		//Check the input Query param types
 		for j := 0; i < methType.NumIn() && (j < len(ep.queryParams)); i++ {
-			if methType.In(i).Name() != ep.queryParams[j].typeName {
+			if !typeNamesEqual(methType.In(i), ep.queryParams[j].typeName) {
 				cool = false
 				break
 			}
@@ -218,13 +218,21 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 				}
 			}
 
-			if methVal.Name() != ep.outputType {
+			if !typeNamesEqual(methVal,ep.outputType) {
 				cool = false
 			}
 		}
 	}
 
 	return
+}
+
+func typeNamesEqual(methVal reflect.Type,name2 string) bool{
+	if strings.Index(name2,".") ==-1{
+		return methVal.Name() == name2
+	}
+	fullName:= strings.Replace(methVal.PkgPath(),"/",".",-1) +"."+ methVal.Name()
+	return fullName == name2
 }
 
 func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f reflect.StructField, methodName string) string {

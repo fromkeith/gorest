@@ -43,29 +43,26 @@ const (
 )
 
 type endPointStruct struct {
-	name             string
-	requestMethod    string
-	signiture        string
-	root             string
-	nonParamPathPart map[int]string
-	params           []param //path parameter name and position
-	queryParams      []param
-
-	signitureLen int
-	paramLen     int
-
-	inputMime         string
-	outputType        string
-	outputTypeIsArray bool
-	outputTypeIsMap   bool
-
-	postdataType        string
-	postdataTypeIsArray bool
-	postdataTypeIsMap   bool
-	isVariableLength	bool
-
+	name                 string
+	requestMethod        string
+	signiture            string
+	root                 string
+	nonParamPathPart     map[int]string
+	params               []param //path parameter name and position
+	queryParams          []param
+	signitureLen         int
+	paramLen             int
+	inputMime            string
+	outputType           string
+	outputTypeIsArray    bool
+	outputTypeIsMap      bool
+	postdataType         string
+	postdataTypeIsArray  bool
+	postdataTypeIsMap    bool
+	isVariableLength     bool
 	parentTypeName       string
 	methodNumberInParent int
+	role                 string
 }
 
 type restStatus struct {
@@ -83,6 +80,7 @@ type serviceMetaData struct {
 	consumesMime string
 	producesMime string
 	root         string
+	realm        string
 }
 
 
@@ -102,8 +100,8 @@ func newManager() *manager {
 	return man
 }
 func init() {
-
 	RegisterMarshaller(Application_Json, NewJSONMarshaller())
+	
 }
 
 
@@ -117,7 +115,9 @@ func RegisterService(h interface{}) {
 	registerService(h)
 }
 
+
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 	if ep, args, queryArgs, found := getEndPointByUrl(r.Method, r.RawURL); found {
 
 		ctx := new(Context)
@@ -125,6 +125,7 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx.request = r
 		ctx.args = args
 		ctx.queryArgs = queryArgs
+
 
 		data, state := prepareServe(ctx, ep)
 

@@ -285,6 +285,30 @@ func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f refl
 
 func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 	servMeta := _manager().getType(ep.parentTypeName)
+	
+	
+	//Check Authorization
+	
+	if servMeta.realm != ""{
+		if cook,err:= context.request.Cookie("RestId");err==nil{
+			inRealm, inRole:= GetAuthorizer(servMeta.realm)(cook.Value,ep.role)
+			
+			if ep.role !=""{
+				if inRealm && inRole{
+					goto Run
+				}
+			}else{
+				if inRealm{
+					goto Run
+				}
+			}
+
+		}
+		return nil, restStatus{403, "Request denied, please ensure correct authentication and authorization."}
+	}
+	
+	Run:
+	
 	servInterface := servMeta.template
 	servVal := reflect.ValueOf(servInterface).Elem()
 

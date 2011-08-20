@@ -110,7 +110,6 @@ func (this *RequestBuilder) setCache(option string) {
 	this._req.Header.Add("Cache-control", option)
 }
 
-
 func (this *RequestBuilder) Accept(mime string) *RequestBuilder {
 	this._req.Header.Add("Accept", mime)
 	return this
@@ -144,13 +143,16 @@ func (this *RequestBuilder) AcceptLanguageClear() *RequestBuilder {
 	return this
 }
 
-
 func (this *RequestBuilder) ConnectionKeepAlive() *RequestBuilder {
 	this._req.Header.Set("Connection", "keep-alive")
 	return this
 }
 func (this *RequestBuilder) ConnectionClose() *RequestBuilder {
 	this._req.Header.Set("Connection", "close")
+	return this
+}
+func (this *RequestBuilder) AddCookie(cookie *http.Cookie) *RequestBuilder {
+	this._req.AddCookie(cookie)
 	return this
 }
 

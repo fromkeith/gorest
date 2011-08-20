@@ -52,16 +52,29 @@ func prepServiceMetaData(tags reflect.StructTag, i interface{}) serviceMetaData 
 	if tag := tags.Get("root"); tag != "" {
 		md.root = tag
 	}
-
+	
 	if tag := tags.Get("consumes"); tag != "" {
 		md.consumesMime = tag
+		if GetMarshallerByMime(tag)  ==nil{
+			panic("The Marshaller for mime-type:["+ tag+"], is not registered. Please register this type before registering your service.")
+		}
 	} else {
 		md.consumesMime = Application_Json //Default	
 	}
 	if tag := tags.Get("produces"); tag != "" {
 		md.producesMime = tag
+		if GetMarshallerByMime(tag)  ==nil{
+			panic("The Marshaller for mime-type:["+ tag+"], is not registered. Please register this type before registering your service.")
+		}
 	} else {
 		md.consumesMime = Application_Json //Default	
+	}
+	
+	if tag := tags.Get("realm"); tag != "" {
+		md.realm = tag
+		if GetAuthorizer(tag)==nil{
+			panic("The realm:["+ tag+"], is not registered. Please register this realm before registering your service.")
+		}
 	}
 
 	md.template = i
@@ -114,6 +127,9 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 
 		if tag := tags.Get("input"); tag != "" {
 			ms.inputMime = tag
+		}
+		if tag := tags.Get("role"); tag != "" {
+			ms.role = tag
 		}
 
 		if tag := tags.Get("postdata"); tag != "" {

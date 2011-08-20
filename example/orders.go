@@ -53,6 +53,7 @@ type OrderService struct {
 	userDetails gorest.EndPoint `method:"GET" path:"/users/{Id:int}" output:"User"`
 	listItems   gorest.EndPoint `method:"GET" path:"/items/" output:"[]Item"`
 	addItem     gorest.EndPoint `method:"POST" path:"/items/" postdata:"Item"`
+	component gorest.EndPoint `method:"GET" path:"/component/{...:string}" output:"Store"`
 
 	//On real app for placeOrder below, the POST URL would probably be just /orders/, this is just to
 	// demo the ability of mixing post-data parameters with URL mapped parameters.
@@ -63,9 +64,15 @@ type OrderService struct {
 }
 
 //Handler Methods: Method names must be the same as in config, but exported (starts with uppercase)
+type Store struct{
+	Name string
+	Year int
+}
 
+func (serv OrderService) Component(path ...string) Store {
 
-
+	return Store{"My",2011}
+}
 func (serv OrderService) UserDetails(Id int) (u User) {
 	if user, found := userStore[Id]; found {
 		u = user

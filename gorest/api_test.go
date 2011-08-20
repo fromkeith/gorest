@@ -46,12 +46,11 @@ type User struct {
 type Service struct {
 	RestService `root:"/serv/" consumes:"application/json" produces:"application/json" realm:"testing"`
 
-	getVarArgs EndPoint `method:"GET" path:"/var/{...:int}" output:"string"`
-	postVarArgs EndPoint `method:"POST" path:"/var/{...:int}" postdata:"string"`
+	getVarArgs       EndPoint `method:"GET" path:"/var/{...:int}" output:"string"`
+	postVarArgs      EndPoint `method:"POST" path:"/var/{...:int}" postdata:"string"`
 	getVarArgsString EndPoint `method:"GET" path:"/varstring/{...:string}" output:"string"`
 
-	getString EndPoint `method:"GET" path:"/string/{Bool:bool}/{Int:int}?{flow:int}&{name:string}" output:"string" role:"Admin"`
-	
+	getString EndPoint `method:"GET" path:"/string/{Bool:bool}/{Int:int}?{flow:int}&{name:string}" output:"string" role:"admin"`
 
 	getInteger     EndPoint `method:"GET" path:"/int/{Bool:bool}/int/yes/{Int:int}/for" output:"int"`
 	getBool        EndPoint `method:"GET" path:"/bool/{Bool:bool}/{Int:int}" output:"bool"`
@@ -77,6 +76,31 @@ type Complex struct {
 	CookiePass string `Cookie:"Pass"`
 }
 
+var idsInRealm = map[string]string
+type StrArr []string
+func TestingAuthorizer(id string, role string) (bool, bool) {
+	if idsInRealm ==nil{
+		idsInRealm =make(map[string][]string,0)
+		idsInRealm["123445"] =[]string{"admin", "user", "updater"}
+		idsInRealm["fox"] =[]string{ "user"}
+		idsInRealm["tom"] =[]string{ "user", "updater"}
+	}
+	
+	if roles,found:=idsInRealm[id];found{
+		for _, r := range roles {
+			if role == r {
+				return true,true
+			}
+		} 
+		return true,false
+	}
+	
+	return false,false
+}
+
+
+
+
 func (serv Service) GetVarArgs(v ...int) string {
 	str := "Start"
 	for _, i := range v {
@@ -91,13 +115,13 @@ func (serv Service) GetVarArgsString(v ...string) string {
 	}
 	return str + "End"
 }
-func(serv Service) PostVarArgs(name string, varArgs ...int){
-	if name == "hello" && varArgs[0]==5 && varArgs[1]==24567{
+func (serv Service) PostVarArgs(name string, varArgs ...int) {
+	if name == "hello" && varArgs[0] == 5 && varArgs[1] == 24567 {
 		serv.ResponseBuilder().SetResponseCode(200)
-	}else{
+	} else {
 		serv.ResponseBuilder().SetResponseCode(404)
 	}
-	
+
 }
 func (serv Service) GetString(Bool bool, Int int, Flow int, Name string) string {
 	return "Hello" + strconv.Btoa(Bool) + strconv.Itoa(Int) + "/" + Name + strconv.Itoa(Flow)
@@ -135,62 +159,61 @@ func (serv Service) GetArrayStruct(FName string, Age int) []User {
 }
 
 
-	
 func (serv Service) PostString(posted string, Bool bool, Int int) {
-	if posted == "Hello" && Bool && Int ==5 {
+	if posted == "Hello" && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
-	}else{
+	} else {
 		serv.ResponseBuilder().SetResponseCode(404)
 	}
 	println("posted:", posted)
 }
 func (serv Service) PostInteger(posted int, Bool bool, Int int) {
-	if posted == 6 && Bool && Int ==5 {
+	if posted == 6 && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
-	}else{
+	} else {
 		serv.ResponseBuilder().SetResponseCode(404)
 	}
 	println("posted:", posted)
 }
 func (serv Service) PostBool(posted bool, Bool bool, Int int) {
-	if !posted && Bool && Int ==5 {
+	if !posted && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
-	}else{
+	} else {
 		serv.ResponseBuilder().SetResponseCode(404)
 	}
 	println("posted:", posted)
 }
 func (serv Service) PostFloat(posted float64, Bool bool, Int int) {
-	if posted == 34.56788 && Bool && Int ==5 {
+	if posted == 34.56788 && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
-	}else{
+	} else {
 		serv.ResponseBuilder().SetResponseCode(404)
 	}
 	println("posted:", posted)
 }
 func (serv Service) PostMapInt(posted map[string]int, Bool bool, Int int) {
-	
-	if posted["One"] == 111 && posted["Two"] == 222 && Bool && Int ==5 {
+
+	if posted["One"] == 111 && posted["Two"] == 222 && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
-	}else{
+	} else {
 		serv.ResponseBuilder().SetResponseCode(404)
 	}
 	println("posted map One:", posted["One"])
 	println("posted map Two:", posted["Two"])
 }
 func (serv Service) PostMapStruct(posted map[string]User, Bool bool, Int int) {
-	if posted["One"].FirstName == "David1" && posted["Two"].LastName == "Gueta2" && Bool && Int ==5 {
+	if posted["One"].FirstName == "David1" && posted["Two"].LastName == "Gueta2" && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
-	}else{
+	} else {
 		serv.ResponseBuilder().SetResponseCode(404)
 	}
 	println("posted map One:", posted["One"].FirstName, posted["One"].LastName, posted["One"].Id)
 	println("posted map Two:", posted["Two"].FirstName, posted["Two"].LastName, posted["Two"].Id)
 }
 func (serv Service) PostArrayStruct(posted []User, Bool bool, Int int) {
-	if posted[0].FirstName == "Joe" &&  posted[1].LastName == "Soap2" && Bool && Int ==5 {
+	if posted[0].FirstName == "Joe" && posted[1].LastName == "Soap2" && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
-	}else{
+	} else {
 		serv.ResponseBuilder().SetResponseCode(404)
 	}
 	println("posted Array One:", posted[0].FirstName, posted[0].LastName, posted[0].Id)
@@ -199,65 +222,76 @@ func (serv Service) PostArrayStruct(posted []User, Bool bool, Int int) {
 }
 
 func TestInit(t *testing.T) {
-	RegisterRealmAuthorizer("testing", DefaultAuthorizer)
+	RegisterRealmAuthorizer("testing", TestingAuthorizer)
 	RegisterService(new(Service))
 	go ServeStandAlone(8787)
 
-	cook:=new(http.Cookie)
+	cook := new(http.Cookie)
 	cook.Name = "RestId"
 	cook.Value = "12345"
-	
-	
+
 	rb, _ := NewRequestBuilder()
-	
+
 	rb.AddCookie(cook)
 	//GET string
 	str := "Hell"
-	rb.Get(&str, "http://localhost:8787/serv/string/true/5?name=Nameed&flow=6")
+	res, _ := rb.Get(&str, "http://localhost:8787/serv/string/true/5?name=Nameed&flow=6")
+	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/Nameed6", "Get string", t)
 
-	rb.Get(&str, "http://localhost:8787/serv/string/true/5?name=Nameed")
+	res, _ = rb.Get(&str, "http://localhost:8787/serv/string/true/5?name=Nameed")
+	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/Nameed0", "Get string", t)
 
-	rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow=6")
+	res, _ = rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow=6")
+	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/6", "Get string", t)
 
-	rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow=")
+	res, _ =rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow=")
+	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/0", "Get string", t)
 
-	rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow")
+	res, _ =rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow")
+	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/0", "Get string", t)
-	
-	rb.Get(&str, "http://localhost:8787/serv/varstring/One/Two/Three")
+
+	res, _ =rb.Get(&str, "http://localhost:8787/serv/varstring/One/Two/Three")
+	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "StartOneTwoThreeEnd", "Get string", t)
 
-	rb.Get(&str, "http://localhost:8787/serv/var/1/2/3/4/5/6/7/8")
-	AssertEqual(str, "Start12345678End", "Call var args", t)
+	res, _ =rb.Get(&str, "http://localhost:8787/serv/var/1/2/3/4/5/6/7/8")
+	AssertEqual(res.StatusCode, 200, "Get via var args ResponseCode", t)
+	AssertEqual(str, "Start12345678End", "Get via var args", t)
 
 	//GET Int
 	inter := -2
-	rb.Get(&inter, "http://localhost:8787/serv/int/true/int/yes/2/for?name=Nameed&flow=6") //The query aurguments here just to be ignored
+	res, _ = rb.Get(&inter, "http://localhost:8787/serv/int/true/int/yes/2/for?name=Nameed&flow=6") //The query aurguments here just to be ignored
+	AssertEqual(res.StatusCode, 200, "Get int ResponseCode", t)
 	AssertEqual(inter, -3, "Get int", t)
 
 	//GET Bool
 	bl := true
-	rb.Get(&bl, "http://localhost:8787/serv/bool/false/2")
+	res, _ =rb.Get(&bl, "http://localhost:8787/serv/bool/false/2")
+	AssertEqual(res.StatusCode, 200, "Get int ResponseCode", t)
 	AssertEqual(bl, false, "Get Bool", t)
 
 	//GET Float
 	fl := 2.4
-	rb.Get(&fl, "http://localhost:8787/serv/float/false/2")
+	res, _ = rb.Get(&fl, "http://localhost:8787/serv/float/false/2")
+	AssertEqual(res.StatusCode, 200, "Get Float ResponseCode", t)
 	AssertEqual(fl, 222.222, "Get Float", t)
 
 	//GET Map Int
 	mp := make(map[string]int)
-	rb.Get(&mp, "http://localhost:8787/serv/mapint/false/2")
+	res, _ = rb.Get(&mp, "http://localhost:8787/serv/mapint/false/2")
+	AssertEqual(res.StatusCode, 200, "Get Float ResponseCode", t)
 	AssertEqual(mp["One"], 1, "Get Map Int", t)
 	AssertEqual(mp["Two"], 2, "Get Map Int", t)
 
 	//GET Map Int
 	mpu := make(map[string]User)
-	rb.Get(&mpu, "http://localhost:8787/serv/mapstruct/false/2")
+	res, _ = rb.Get(&mpu, "http://localhost:8787/serv/mapstruct/false/2")
+	AssertEqual(res.StatusCode, 200, "Get Map struct ResponseCode", t)
 	AssertEqual(mpu["One"].Id, "1", "Get Map struct", t)
 	AssertEqual(mpu["Two"].Id, "2", "Get Map struct", t)
 	AssertEqual(mpu["Two"].FirstName, "David2", "Get Map struct", t)
@@ -265,44 +299,48 @@ func TestInit(t *testing.T) {
 
 	//GET Array Struct
 	au := make([]User, 0)
-	rb.Get(&au, "http://localhost:8787/serv/arraystruct/Sandy/2")
-	AssertEqual(au[0].Id, "user1", "Get Array Struct", t)
-	AssertEqual(au[0].FirstName, "Sandy", "Get Array Struct", t)
+	res, _ = rb.Get(&au, "http://localhost:8787/serv/arraystruct/Sandy/2")
+	AssertEqual(res.StatusCode, 200, "Get Array struct ResponseCode", t)
+	if res.StatusCode == 200{
+		AssertEqual(au[0].Id, "user1", "Get Array Struct", t)
+		AssertEqual(au[0].FirstName, "Sandy", "Get Array Struct", t)
+	}
+	
 
 	//POST 
 
-	res,_:=rb.Post("Hello", "http://localhost:8787/serv/string/true/5")
+	res, _ = rb.Post("Hello", "http://localhost:8787/serv/string/true/5")
 	AssertEqual(res.StatusCode, 200, "Post String", t)
-	res,_=rb.Post(6, "http://localhost:8787/serv/int/true/5")
+	res, _ = rb.Post(6, "http://localhost:8787/serv/int/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Integer", t)
-	res,_=rb.Post(false, "http://localhost:8787/serv/bool/true/5")
+	res, _ = rb.Post(false, "http://localhost:8787/serv/bool/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Boolean", t)
-	res,_=rb.Post(34.56788, "http://localhost:8787/serv/float/true/5")
+	res, _ = rb.Post(34.56788, "http://localhost:8787/serv/float/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Float", t)
-	
+
 	//Post VarArgs
-	res,_=rb.Post("hello", "http://localhost:8787/serv/var/5/24567")
+	res, _ = rb.Post("hello", "http://localhost:8787/serv/var/5/24567")
 	AssertEqual(res.StatusCode, 200, "Post Var args", t)
 
 	//POST Map Int
 	mi := make(map[string]int, 0)
 	mi["One"] = 111
 	mi["Two"] = 222
-	res,_=rb.Post(mi, "http://localhost:8787/serv/mapint/true/5")
+	res, _ = rb.Post(mi, "http://localhost:8787/serv/mapint/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Integer Map", t)
 
 	//POST Map Struct
 	mu := make(map[string]User, 0)
 	mu["One"] = User{"111", "David1", "Gueta1", 35, 123}
 	mu["Two"] = User{"222", "David2", "Gueta2", 35, 123}
-	res,_=rb.Post(mu, "http://localhost:8787/serv/mapstruct/true/5")
+	res, _ = rb.Post(mu, "http://localhost:8787/serv/mapstruct/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Struct Map", t)
-	
+
 	//POST Array Struct
 	users := make([]User, 0)
 	users = append(users, User{"user1", "Joe", "Soap", 19, 89.7})
 	users = append(users, User{"user2", "Jose", "Soap2", 15, 89.7})
-	res,_=rb.Post(users, "http://localhost:8787/serv/arraystruct/true/5")
+	res, _ = rb.Post(users, "http://localhost:8787/serv/arraystruct/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Struct Array", t)
 
 }

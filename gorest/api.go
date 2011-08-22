@@ -54,6 +54,7 @@ type Context struct {
 	responseCode       int
 	responseMimeSet    bool
 	dataHasBeenWritten bool
+	
 }
 
 func (c *Context) Request() *http.Request {
@@ -193,6 +194,20 @@ func (this *ResponseBuilder) SeeOther(location string) *ResponseBuilder {
 func (this *ResponseBuilder) MovedTemporarily(location string) *ResponseBuilder {
 	this.ctx.responseCode = 307
 	this.writer().Header().Set("Location", location)
+	return this
+}
+
+
+func (this *ResponseBuilder) Age(seconds int) *ResponseBuilder {
+	this.writer().Header().Set("Age", strconv.Itoa(seconds))
+	return this
+}
+func (this *ResponseBuilder) ETag(tag string) *ResponseBuilder {
+	this.writer().Header().Set("ETag", tag)
+	return this
+}
+func (this *ResponseBuilder) Allow(tag string) *ResponseBuilder {
+	this.writer().Header().Add("Allow", tag)
 	return this
 }
 

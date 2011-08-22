@@ -94,10 +94,12 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 			ms.requestMethod = PUT
 		} else if tag == "DELETE" {
 			ms.requestMethod = DELETE
-		} else if tag == "OPTIONS" {
+		} else if tag == "HEAD" {
+			ms.requestMethod = HEAD
+		}else if tag == "OPTIONS" {
 			ms.requestMethod = OPTIONS
 		} else {
-			log.Panic("Unknown method type:[" + tag + "] in endpoint declaration. Allowed types {GET,POST,PUT,DELETE,OPTIONS}")
+			log.Panic("Unknown method type:[" + tag + "] in endpoint declaration. Allowed types {GET,POST,PUT,DELETE,HEAD,OPTIONS}")
 		}
 
 		if tag := tags.Get("path"); tag != "" {
@@ -272,6 +274,7 @@ func isAllowedParamType(typeName string) bool {
 
 func getEndPointByUrl(method string, url string) (endPointStruct, map[string]string, map[string]string, bool) {
 	//println("Getting:",url)
+	
 	pathPart:=url
 	queryPart:=""
 	

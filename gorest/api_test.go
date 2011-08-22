@@ -28,6 +28,7 @@ package gorest
 import (
 	"testing"
 	"strconv"
+	"strings"
 	"http"
 )
 
@@ -66,6 +67,10 @@ type Service struct {
 	postMapInt      EndPoint `method:"POST" path:"/mapint/{Bool:bool}/{Int:int}" postdata:"map[string]int" `
 	postMapStruct   EndPoint `method:"POST" path:"/mapstruct/{Bool:bool}/{Int:int}" postdata:"map[string]User" `
 	postArrayStruct EndPoint `method:"POST" path:"/arraystruct/{Bool:bool}/{Int:int}" postdata:"[]User"`
+	
+	head			EndPoint `method:"HEAD" path:"/bool/{Bool:bool}/{Int:int}"`
+	options			EndPoint `method:"OPTIONS" path:"/bool/{Bool:bool}/{Int:int}"`
+	delete			EndPoint `method:"DELETE" path:"/bool/{Bool:bool}/{Int:int}"`
 }
 
 type Complex struct {
@@ -93,10 +98,25 @@ func TestingAuthorizer(id string, role string) (bool, bool) {
 		}
 		return true, false
 	}
-
+	
 	return false, false
 }
 
+func (serv Service) Head(Bool bool, Int int)  {
+	rb:=serv.ResponseBuilder()
+	rb.ETag("12345")
+	rb.Age(60*30)//30 minutes old
+}
+func (serv Service) Delete(Bool bool, Int int)  {
+	//Will return default response code of 200
+}
+func (serv Service) Options(Bool bool, Int int)  {
+	rb:=serv.ResponseBuilder()
+	rb.Allow("GET")
+	rb.Allow("HEAD")
+	rb.Allow("POST")
+
+}
 
 func (serv Service) GetVarArgs(v ...int) string {
 	str := "Start"
@@ -116,7 +136,7 @@ func (serv Service) PostVarArgs(name string, varArgs ...int) {
 	if name == "hello" && varArgs[0] == 5 && varArgs[1] == 24567 {
 		serv.ResponseBuilder().SetResponseCode(200)
 	} else {
-		serv.ResponseBuilder().SetResponseCode(404)
+		serv.ResponseBuilder().SetResponseCode(400)
 	}
 
 }
@@ -160,7 +180,7 @@ func (serv Service) PostString(posted string, Bool bool, Int int) {
 	if posted == "Hello" && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
 	} else {
-		serv.ResponseBuilder().SetResponseCode(404)
+		serv.ResponseBuilder().SetResponseCode(400)
 	}
 	println("posted:", posted)
 }
@@ -168,7 +188,7 @@ func (serv Service) PostInteger(posted int, Bool bool, Int int) {
 	if posted == 6 && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
 	} else {
-		serv.ResponseBuilder().SetResponseCode(404)
+		serv.ResponseBuilder().SetResponseCode(400)
 	}
 	println("posted:", posted)
 }
@@ -176,7 +196,7 @@ func (serv Service) PostBool(posted bool, Bool bool, Int int) {
 	if !posted && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
 	} else {
-		serv.ResponseBuilder().SetResponseCode(404)
+		serv.ResponseBuilder().SetResponseCode(400)
 	}
 	println("posted:", posted)
 }
@@ -184,7 +204,7 @@ func (serv Service) PostFloat(posted float64, Bool bool, Int int) {
 	if posted == 34.56788 && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
 	} else {
-		serv.ResponseBuilder().SetResponseCode(404)
+		serv.ResponseBuilder().SetResponseCode(400)
 	}
 	println("posted:", posted)
 }
@@ -193,7 +213,7 @@ func (serv Service) PostMapInt(posted map[string]int, Bool bool, Int int) {
 	if posted["One"] == 111 && posted["Two"] == 222 && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
 	} else {
-		serv.ResponseBuilder().SetResponseCode(404)
+		serv.ResponseBuilder().SetResponseCode(400)
 	}
 	println("posted map One:", posted["One"])
 	println("posted map Two:", posted["Two"])
@@ -202,7 +222,7 @@ func (serv Service) PostMapStruct(posted map[string]User, Bool bool, Int int) {
 	if posted["One"].FirstName == "David1" && posted["Two"].LastName == "Gueta2" && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
 	} else {
-		serv.ResponseBuilder().SetResponseCode(404)
+		serv.ResponseBuilder().SetResponseCode(400)
 	}
 	println("posted map One:", posted["One"].FirstName, posted["One"].LastName, posted["One"].Id)
 	println("posted map Two:", posted["Two"].FirstName, posted["Two"].LastName, posted["Two"].Id)
@@ -211,7 +231,7 @@ func (serv Service) PostArrayStruct(posted []User, Bool bool, Int int) {
 	if posted[0].FirstName == "Joe" && posted[1].LastName == "Soap2" && Bool && Int == 5 {
 		serv.ResponseBuilder().SetResponseCode(200)
 	} else {
-		serv.ResponseBuilder().SetResponseCode(404)
+		serv.ResponseBuilder().SetResponseCode(400)
 	}
 	println("posted Array One:", posted[0].FirstName, posted[0].LastName, posted[0].Id)
 	println("posted Array Two:", posted[1].FirstName, posted[1].LastName, posted[1].Id)
@@ -351,6 +371,25 @@ func TestInit(t *testing.T) {
 	users = append(users, User{"user2", "Jose", "Soap2", 15, 89.7})
 	res, _ = rb.Post(users, "http://localhost:8787/serv/arraystruct/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Struct Array", t)
+	
+	
+	//OPTIONS
+	strArr:=make([]string,0)
+	res, _ = rb.Options(&strArr, "http://localhost:8787/serv/bool/false/2")
+	AssertEqual(res.StatusCode, 200, "Options ResponseCode", t)
+	AssertEqual(strArr[0], GET, "Options", t)
+	AssertEqual(strArr[1], HEAD, "Options", t)
+	AssertEqual(strArr[2], POST, "Options", t)
+	
+	//HEAD
+	res, _ = rb.Head("http://localhost:8787/serv/bool/false/2")
+	AssertEqual(res.StatusCode, 200, "Head ResponseCode", t)
+	AssertEqual(res.Header.Get("ETag"), "12345", "Head Header ETag", t)
+	AssertEqual(strings.Trim(res.Header["Age"][0]," "), "1800", "Head Header Age", t)
+	
+	//DELETE
+	res, _ = rb.Delete("http://localhost:8787/serv/bool/false/2")
+	AssertEqual(res.StatusCode, 200, "Delete ResponseCode", t)
 
 }
 

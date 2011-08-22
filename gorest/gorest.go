@@ -39,6 +39,7 @@ const (
 	POST    = "POST"
 	PUT     = "PUT"
 	DELETE  = "DELETE"
+	HEAD    = "HEAD"
 	OPTIONS = "OPTIONS"
 )
 
@@ -101,7 +102,7 @@ func newManager() *manager {
 }
 func init() {
 	RegisterMarshaller(Application_Json, NewJSONMarshaller())
-	
+
 }
 
 
@@ -117,8 +118,14 @@ func RegisterService(h interface{}) {
 
 
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	if ep, args, queryArgs, found := getEndPointByUrl(r.Method, r.RawURL); found {
+	url,err := http.URLUnescape(r.RawURL)
+	if err!=nil{
+		println("Could not serve page: ", r.RawURL)
+		w.WriteHeader(400)
+		w.Write([]byte("Client sent bad request."))
+		return
+	}
+	if ep, args, queryArgs, found := getEndPointByUrl(r.Method, url); found {
 
 		ctx := new(Context)
 		ctx.writer = w
@@ -126,12 +133,11 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx.args = args
 		ctx.queryArgs = queryArgs
 
-
 		data, state := prepareServe(ctx, ep)
 
 		if state.httpCode == http.StatusOK {
 			switch ep.requestMethod {
-			case POST, PUT, DELETE:
+			case POST, PUT, DELETE,HEAD,OPTIONS:
 				{
 					if ctx.responseCode == 0 {
 						w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
@@ -170,7 +176,7 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		println("Could not serve page: ", r.RawURL)
+		println("Could not serve page: ", url)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("The resource in the requested path could not be found."))
 	}

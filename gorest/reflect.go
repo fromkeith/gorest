@@ -128,14 +128,15 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 		}
 	case GET:
 		{
-			numInputIgnore = 1 //The first param is the struct
+			numInputIgnore = 1 //The first param is the default service struct
 			numOut = 1
 		}
-	case DELETE:
+	case DELETE,HEAD,OPTIONS :
 		{
-			numInputIgnore = 1 //The first param is the struct
+			numInputIgnore = 1 //The first param is the default service struct
 			numOut = 0
 		}
+
 	}
 
 	if (methType.NumIn() - numInputIgnore) != (ep.paramLen + len(ep.queryParams)) {

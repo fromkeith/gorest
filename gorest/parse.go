@@ -46,13 +46,16 @@ type param struct {
 var ALLOWED_PAR_TYPES = []string{"string", "int", "bool", "float32", "float64"}
 
 
-func prepServiceMetaData(tags reflect.StructTag, i interface{}) serviceMetaData {
+func prepServiceMetaData(root string,tags reflect.StructTag, i interface{},name string) serviceMetaData {
 	md := new(serviceMetaData)
 
 	if tag := tags.Get("root"); tag != "" {
 		md.root = tag
 	}
-	
+	if root !=""{
+		md.root = root+md.root
+	}
+	log.Println("All EndPoints for service [",name,"] , registered under root path: ",md.root)
 	if tag := tags.Get("consumes"); tag != "" {
 		md.consumesMime = tag
 		if GetMarshallerByMime(tag)  ==nil{

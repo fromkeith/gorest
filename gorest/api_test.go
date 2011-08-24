@@ -238,10 +238,16 @@ func (serv Service) PostArrayStruct(posted []User, Bool bool, Int int) {
 
 }
 
+var MUX_ROOT = "/home/now/the/future/"
 func TestInit(t *testing.T) {
 	RegisterRealmAuthorizer("testing", TestingAuthorizer)
-	RegisterService(new(Service))
-	go ServeStandAlone(8787)
+	
+	RegisterServiceOnPath(MUX_ROOT,new(Service))	
+	//http.Handle(MUX_ROOT,Handle())
+	http.HandleFunc(MUX_ROOT,HandleFunc)
+	
+	go http.ListenAndServe(":8787",nil)
+	//go ServeStandAlone(8787)
 
 	cook := new(http.Cookie)
 	cook.Name = "RestId"
@@ -252,62 +258,62 @@ func TestInit(t *testing.T) {
 	rb.AddCookie(cook)
 	//GET string
 	str := "Hell"
-	res, _ := rb.Get(&str, "http://localhost:8787/serv/string/true/5?name=Nameed&flow=6")
+	res, _ := rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?name=Nameed&flow=6")
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/Nameed6", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787/serv/string/true/5?name=Nameed")
+	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?name=Nameed")
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/Nameed0", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow=6")
+	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?flow=6")
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/6", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow=")
+	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?flow=")
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/0", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787/serv/string/true/5?flow")
+	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?flow")
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/0", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787/serv/varstring/One/Two/Three")
+	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/varstring/One/Two/Three")
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "StartOneTwoThreeEnd", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787/serv/var/1/2/3/4/5/6/7/8")
+	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/var/1/2/3/4/5/6/7/8")
 	AssertEqual(res.StatusCode, 200, "Get via var args ResponseCode", t)
 	AssertEqual(str, "Start12345678End", "Get via var args", t)
 
 	//GET Int
 	inter := -2
-	res, _ = rb.Get(&inter, "http://localhost:8787/serv/int/true/int/yes/2/for?name=Nameed&flow=6") //The query aurguments here just to be ignored
+	res, _ = rb.Get(&inter, "http://localhost:8787"+MUX_ROOT+"serv/int/true/int/yes/2/for?name=Nameed&flow=6") //The query aurguments here just to be ignored
 	AssertEqual(res.StatusCode, 200, "Get int ResponseCode", t)
 	AssertEqual(inter, -3, "Get int", t)
 
 	//GET Bool
 	bl := true
-	res, _ = rb.Get(&bl, "http://localhost:8787/serv/bool/false/2")
+	res, _ = rb.Get(&bl, "http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
 	AssertEqual(res.StatusCode, 200, "Get int ResponseCode", t)
 	AssertEqual(bl, false, "Get Bool", t)
 
 	//GET Float
 	fl := 2.4
-	res, _ = rb.Get(&fl, "http://localhost:8787/serv/float/false/2")
+	res, _ = rb.Get(&fl, "http://localhost:8787"+MUX_ROOT+"serv/float/false/2")
 	AssertEqual(res.StatusCode, 200, "Get Float ResponseCode", t)
 	AssertEqual(fl, 222.222, "Get Float", t)
 
 	//GET Map Int
 	mp := make(map[string]int)
-	res, _ = rb.Get(&mp, "http://localhost:8787/serv/mapint/false/2")
+	res, _ = rb.Get(&mp, "http://localhost:8787"+MUX_ROOT+"serv/mapint/false/2")
 	AssertEqual(res.StatusCode, 200, "Get Float ResponseCode", t)
 	AssertEqual(mp["One"], 1, "Get Map Int", t)
 	AssertEqual(mp["Two"], 2, "Get Map Int", t)
 
 	//GET Map Int
 	mpu := make(map[string]User)
-	res, _ = rb.Get(&mpu, "http://localhost:8787/serv/mapstruct/false/2")
+	res, _ = rb.Get(&mpu, "http://localhost:8787"+MUX_ROOT+"serv/mapstruct/false/2")
 	AssertEqual(res.StatusCode, 200, "Get Map struct ResponseCode", t)
 	AssertEqual(mpu["One"].Id, "1", "Get Map struct", t)
 	AssertEqual(mpu["Two"].Id, "2", "Get Map struct", t)
@@ -316,7 +322,7 @@ func TestInit(t *testing.T) {
 
 	//GET Array Struct
 	au := make([]User, 0)
-	res, _ = rb.Get(&au, "http://localhost:8787/serv/arraystruct/Sandy/2")
+	res, _ = rb.Get(&au, "http://localhost:8787"+MUX_ROOT+"serv/arraystruct/Sandy/2")
 	AssertEqual(res.StatusCode, 200, "Get Array struct ResponseCode", t)
 	if res.StatusCode == 200 {
 		AssertEqual(au[0].Id, "user1", "Get Array Struct", t)
@@ -325,11 +331,11 @@ func TestInit(t *testing.T) {
 
 	//POST 
 
-	res, _ = rb.Post("Hello", "http://localhost:8787/serv/string/true/5")
+	res, _ = rb.Post("Hello", "http://localhost:8787"+MUX_ROOT+"serv/string/true/5")
 	AssertEqual(res.StatusCode, 200, "Post String", t)
 
 	//POST Int requires the postInt-user role, which only user fox has
-	res, _ = rb.Post(6, "http://localhost:8787/serv/int/true/5")
+	res, _ = rb.Post(6, "http://localhost:8787"+MUX_ROOT+"serv/int/true/5")
 	AssertEqual(res.StatusCode, 403, "Post Integer wrong user", t)
 	
 	rb2, _ := NewRequestBuilder()
@@ -338,57 +344,57 @@ func TestInit(t *testing.T) {
 	cook2.Value = "fox"
 	
 	rb2.AddCookie(cook2)
-	res, _ = rb2.Post(6, "http://localhost:8787/serv/int/true/5")
+	res, _ = rb2.Post(6, "http://localhost:8787"+MUX_ROOT+"serv/int/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Integer correct user", t)
 
 	//Go back to using userid: 12345
-	res, _ = rb.Post(false, "http://localhost:8787/serv/bool/true/5")
+	res, _ = rb.Post(false, "http://localhost:8787"+MUX_ROOT+"serv/bool/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Boolean", t)
-	res, _ = rb.Post(34.56788, "http://localhost:8787/serv/float/true/5")
+	res, _ = rb.Post(34.56788, "http://localhost:8787"+MUX_ROOT+"serv/float/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Float", t)
 
 	//Post VarArgs
-	res, _ = rb.Post("hello", "http://localhost:8787/serv/var/5/24567")
+	res, _ = rb.Post("hello", "http://localhost:8787"+MUX_ROOT+"serv/var/5/24567")
 	AssertEqual(res.StatusCode, 200, "Post Var args", t)
 
 	//POST Map Int
 	mi := make(map[string]int, 0)
 	mi["One"] = 111
 	mi["Two"] = 222
-	res, _ = rb.Post(mi, "http://localhost:8787/serv/mapint/true/5")
+	res, _ = rb.Post(mi, "http://localhost:8787"+MUX_ROOT+"serv/mapint/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Integer Map", t)
 
 	//POST Map Struct
 	mu := make(map[string]User, 0)
 	mu["One"] = User{"111", "David1", "Gueta1", 35, 123}
 	mu["Two"] = User{"222", "David2", "Gueta2", 35, 123}
-	res, _ = rb.Post(mu, "http://localhost:8787/serv/mapstruct/true/5")
+	res, _ = rb.Post(mu, "http://localhost:8787"+MUX_ROOT+"serv/mapstruct/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Struct Map", t)
 
 	//POST Array Struct
 	users := make([]User, 0)
 	users = append(users, User{"user1", "Joe", "Soap", 19, 89.7})
 	users = append(users, User{"user2", "Jose", "Soap2", 15, 89.7})
-	res, _ = rb.Post(users, "http://localhost:8787/serv/arraystruct/true/5")
+	res, _ = rb.Post(users, "http://localhost:8787"+MUX_ROOT+"serv/arraystruct/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Struct Array", t)
 	
 	
 	//OPTIONS
 	strArr:=make([]string,0)
-	res, _ = rb.Options(&strArr, "http://localhost:8787/serv/bool/false/2")
+	res, _ = rb.Options(&strArr, "http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
 	AssertEqual(res.StatusCode, 200, "Options ResponseCode", t)
 	AssertEqual(strArr[0], GET, "Options", t)
 	AssertEqual(strArr[1], HEAD, "Options", t)
 	AssertEqual(strArr[2], POST, "Options", t)
 	
 	//HEAD
-	res, _ = rb.Head("http://localhost:8787/serv/bool/false/2")
+	res, _ = rb.Head("http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
 	AssertEqual(res.StatusCode, 200, "Head ResponseCode", t)
 	AssertEqual(res.Header.Get("ETag"), "12345", "Head Header ETag", t)
 	AssertEqual(strings.Trim(res.Header["Age"][0]," "), "1800", "Head Header Age", t)
 	
 	//DELETE
-	res, _ = rb.Delete("http://localhost:8787/serv/bool/false/2")
+	res, _ = rb.Delete("http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
 	AssertEqual(res.StatusCode, 200, "Delete ResponseCode", t)
 
 }
@@ -399,7 +405,7 @@ func TestServiceMeta(t *testing.T) {
 	} else {
 		AssertEqual(meta.consumesMime, "application/json", "Service consumesMime", t)
 		AssertEqual(meta.producesMime, "application/json", "Service producesMime", t)
-		AssertEqual(meta.root, "/serv/", "Service root", t)
+		AssertEqual(meta.root, MUX_ROOT+"serv/", "Service root", t)
 
 	}
 

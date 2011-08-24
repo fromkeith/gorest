@@ -28,6 +28,7 @@ package gorest
 import (
 	"http"
 	"strconv"
+	"strings"
 )
 
 type GoRestService interface {
@@ -47,6 +48,7 @@ type endPointStruct struct {
 	name                 string
 	requestMethod        string
 	signiture            string
+	muxRoot				 string
 	root                 string
 	nonParamPathPart     map[int]string
 	params               []param //path parameter name and position
@@ -107,13 +109,26 @@ func init() {
 
 
 func RegisterService(h interface{}) {
+	RegisterServiceOnPath("",h)
+}
+
+func RegisterServiceOnPath(root string,h interface{}){
 	//We only initialise the handler management once we know gorest is being used to hanlde request as well, not just client.
 	if !handlerInitialised {
 		restManager = newManager()
 		handlerInitialised = true
 	}
+	
+	if root == "/"{
+		root = ""
+	}
+	
+	if root !=""{
+		root = strings.Trim(root,"/")
+		root = "/"+root
+	}
 
-	registerService(h)
+	registerService(root,h)
 }
 
 
@@ -201,17 +216,20 @@ func (man *manager) addEndPoint(ep endPointStruct) {
 	man.endpoints[ep.requestMethod+":"+ep.signiture] = ep
 }
 
-func mainHandler(w http.ResponseWriter, r *http.Request) {
+func HandleFunc(w http.ResponseWriter, r *http.Request) {
 	//    log.Println("Serving URL : ",r.RawURL)
 	restManager.ServeHTTP(w, r)
 }
 
 func ServeStandAlone(port int) {
-	http.HandleFunc("/", mainHandler)
+	http.HandleFunc("/", HandleFunc)
 	http.ListenAndServe(":"+strconv.Itoa(port), nil)
 }
 
 func _manager() *manager {
+	return restManager
+}
+func Handle()  *manager{
 	return restManager
 }
 

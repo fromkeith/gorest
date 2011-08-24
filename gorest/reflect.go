@@ -46,7 +46,7 @@ const (
 
 
 //Takes a value of a struct representing a service.
-func registerService(h interface{}) {
+func registerService(root string,h interface{}) {
 
 	if _, ok := h.(GoRestService); !ok {
 		panic(ERROR_INVALID_INTERFACE)
@@ -63,7 +63,7 @@ func registerService(h interface{}) {
 	if t.Kind() == reflect.Struct {
 		if field, found := t.FieldByName("RestService"); found {
 			tag := field.Tag
-			meta := prepServiceMetaData(tag, h)
+			meta := prepServiceMetaData(root,tag, h,t.Name())
 			tFullName := _manager().addType(t.PkgPath()+"/"+t.Name(), meta)
 			for i := 0; i < t.NumField(); i++ {
 				f := t.Field(i)

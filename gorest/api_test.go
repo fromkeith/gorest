@@ -51,14 +51,14 @@ type Service struct {
 	postVarArgs      EndPoint `method:"POST" path:"/var/{...:int}" postdata:"string"`
 	getVarArgsString EndPoint `method:"GET" path:"/varstring/{...:string}" output:"string"`
 
-	getString EndPoint `method:"GET" path:"/string/{Bool:bool}/{Int:int}?{flow:int}&{name:string}" output:"string" role:"string-user"`
-
-	getInteger     EndPoint `method:"GET" path:"/int/{Bool:bool}/int/yes/{Int:int}/for" output:"int"`
-	getBool        EndPoint `method:"GET" path:"/bool/{Bool:bool}/{Int:int}" output:"bool"`
-	getFloat       EndPoint `method:"GET" path:"/float/{Bool:bool}/{Int:int}" output:"float64"`
-	getMapInt      EndPoint `method:"GET" path:"/mapint/{Bool:bool}/{Int:int}" output:"map[string]int"`
-	getMapStruct   EndPoint `method:"GET" path:"/mapstruct/{Bool:bool}/{Int:int}" output:"map[string]User"`
-	getArrayStruct EndPoint `method:"GET" path:"/arraystruct/{FName:string}/{Age:int}" output:"[]User"`
+	getString            EndPoint `method:"GET" path:"/string/{Bool:bool}/{Int:int}?{flow:int}&{name:string}" output:"string" role:"string-user"`
+	getStringSimilarPath EndPoint `method:"GET" path:"/strin?{name:string}" output:"string"`
+	getInteger           EndPoint `method:"GET" path:"/int/{Bool:bool}/int/yes/{Int:int}/for" output:"int"`
+	getBool              EndPoint `method:"GET" path:"/bool/{Bool:bool}/{Int:int}" output:"bool"`
+	getFloat             EndPoint `method:"GET" path:"/float/{Bool:bool}/{Int:int}" output:"float64"`
+	getMapInt            EndPoint `method:"GET" path:"/mapint/{Bool:bool}/{Int:int}" output:"map[string]int"`
+	getMapStruct         EndPoint `method:"GET" path:"/mapstruct/{Bool:bool}/{Int:int}" output:"map[string]User"`
+	getArrayStruct       EndPoint `method:"GET" path:"/arraystruct/{FName:string}/{Age:int}" output:"[]User"`
 
 	postString      EndPoint `method:"POST" path:"/string/{Bool:bool}/{Int:int}" postdata:"string" role:"post-user"`
 	postInteger     EndPoint `method:"POST" path:"/int/{Bool:bool}/{Int:int}" postdata:"int" role:"postInt-user"`
@@ -67,10 +67,10 @@ type Service struct {
 	postMapInt      EndPoint `method:"POST" path:"/mapint/{Bool:bool}/{Int:int}" postdata:"map[string]int" `
 	postMapStruct   EndPoint `method:"POST" path:"/mapstruct/{Bool:bool}/{Int:int}" postdata:"map[string]User" `
 	postArrayStruct EndPoint `method:"POST" path:"/arraystruct/{Bool:bool}/{Int:int}" postdata:"[]User"`
-	
-	head			EndPoint `method:"HEAD" path:"/bool/{Bool:bool}/{Int:int}"`
-	options			EndPoint `method:"OPTIONS" path:"/bool/{Bool:bool}/{Int:int}"`
-	delete			EndPoint `method:"DELETE" path:"/bool/{Bool:bool}/{Int:int}"`
+
+	head    EndPoint `method:"HEAD" path:"/bool/{Bool:bool}/{Int:int}"`
+	options EndPoint `method:"OPTIONS" path:"/bool/{Bool:bool}/{Int:int}"`
+	delete  EndPoint `method:"DELETE" path:"/bool/{Bool:bool}/{Int:int}"`
 }
 
 type Complex struct {
@@ -98,20 +98,20 @@ func TestingAuthorizer(id string, role string) (bool, bool) {
 		}
 		return true, false
 	}
-	
+
 	return false, false
 }
 
-func (serv Service) Head(Bool bool, Int int)  {
-	rb:=serv.ResponseBuilder()
+func (serv Service) Head(Bool bool, Int int) {
+	rb := serv.ResponseBuilder()
 	rb.ETag("12345")
-	rb.Age(60*30)//30 minutes old
+	rb.Age(60 * 30) //30 minutes old
 }
-func (serv Service) Delete(Bool bool, Int int)  {
+func (serv Service) Delete(Bool bool, Int int) {
 	//Will return default response code of 200
 }
-func (serv Service) Options(Bool bool, Int int)  {
-	rb:=serv.ResponseBuilder()
+func (serv Service) Options(Bool bool, Int int) {
+	rb := serv.ResponseBuilder()
 	rb.Allow("GET")
 	rb.Allow("HEAD")
 	rb.Allow("POST")
@@ -140,6 +140,10 @@ func (serv Service) PostVarArgs(name string, varArgs ...int) {
 	}
 
 }
+func (serv Service) GetStringSimilarPath(name string) string {
+	return "Yebo-Yes-" + name
+}
+
 func (serv Service) GetString(Bool bool, Int int, Flow int, Name string) string {
 	return "Hello" + strconv.Btoa(Bool) + strconv.Itoa(Int) + "/" + Name + strconv.Itoa(Flow)
 }
@@ -239,14 +243,15 @@ func (serv Service) PostArrayStruct(posted []User, Bool bool, Int int) {
 }
 
 var MUX_ROOT = "/home/now/the/future/"
+
 func TestInit(t *testing.T) {
 	RegisterRealmAuthorizer("testing", TestingAuthorizer)
-	
-	RegisterServiceOnPath(MUX_ROOT,new(Service))	
+
+	RegisterServiceOnPath(MUX_ROOT, new(Service))
 	//http.Handle(MUX_ROOT,Handle())
-	http.HandleFunc(MUX_ROOT,HandleFunc)
-	
-	go http.ListenAndServe(":8787",nil)
+	http.HandleFunc(MUX_ROOT, HandleFunc)
+
+	go http.ListenAndServe(":8787", nil)
 	//go ServeStandAlone(8787)
 
 	cook := new(http.Cookie)
@@ -261,6 +266,10 @@ func TestInit(t *testing.T) {
 	res, _ := rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?name=Nameed&flow=6")
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/Nameed6", "Get string", t)
+
+	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/strin?name=Nameed")
+	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
+	AssertEqual(str, "Yebo-Yes-Nameed", "Get string similar path", t)
 
 	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?name=Nameed")
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
@@ -279,12 +288,12 @@ func TestInit(t *testing.T) {
 	AssertEqual(str, "Hellotrue5/0", "Get string", t)
 
 	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/varstring/One/Two/Three")
-	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
-	AssertEqual(str, "StartOneTwoThreeEnd", "Get string", t)
+	AssertEqual(res.StatusCode, 200, "Get var-args string ResponseCode", t)
+	AssertEqual(str, "StartOneTwoThreeEnd", "Get var-args string", t)
 
 	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/var/1/2/3/4/5/6/7/8")
-	AssertEqual(res.StatusCode, 200, "Get via var args ResponseCode", t)
-	AssertEqual(str, "Start12345678End", "Get via var args", t)
+	AssertEqual(res.StatusCode, 200, "Get var-args Int ResponseCode", t)
+	AssertEqual(str, "Start12345678End", "Get var-args Int", t)
 
 	//GET Int
 	inter := -2
@@ -337,12 +346,12 @@ func TestInit(t *testing.T) {
 	//POST Int requires the postInt-user role, which only user fox has
 	res, _ = rb.Post(6, "http://localhost:8787"+MUX_ROOT+"serv/int/true/5")
 	AssertEqual(res.StatusCode, 403, "Post Integer wrong user", t)
-	
+
 	rb2, _ := NewRequestBuilder()
 	cook2 := new(http.Cookie)
 	cook2.Name = "RestId"
 	cook2.Value = "fox"
-	
+
 	rb2.AddCookie(cook2)
 	res, _ = rb2.Post(6, "http://localhost:8787"+MUX_ROOT+"serv/int/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Integer correct user", t)
@@ -377,24 +386,23 @@ func TestInit(t *testing.T) {
 	users = append(users, User{"user2", "Jose", "Soap2", 15, 89.7})
 	res, _ = rb.Post(users, "http://localhost:8787"+MUX_ROOT+"serv/arraystruct/true/5")
 	AssertEqual(res.StatusCode, 200, "Post Struct Array", t)
-	
-	
+
 	//OPTIONS
-	strArr:=make([]string,0)
+	strArr := make([]string, 0)
 	res, _ = rb.Options(&strArr, "http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
 	AssertEqual(res.StatusCode, 200, "Options ResponseCode", t)
 	AssertEqual(strArr[0], GET, "Options", t)
 	AssertEqual(strArr[1], HEAD, "Options", t)
 	AssertEqual(strArr[2], POST, "Options", t)
-	
+
 	//HEAD
-	res, _ = rb.Head("http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
+	res, _ = rb.Head("http://localhost:8787" + MUX_ROOT + "serv/bool/false/2")
 	AssertEqual(res.StatusCode, 200, "Head ResponseCode", t)
 	AssertEqual(res.Header.Get("ETag"), "12345", "Head Header ETag", t)
-	AssertEqual(strings.Trim(res.Header["Age"][0]," "), "1800", "Head Header Age", t)
-	
+	AssertEqual(strings.Trim(res.Header["Age"][0], " "), "1800", "Head Header Age", t)
+
 	//DELETE
-	res, _ = rb.Delete("http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
+	res, _ = rb.Delete("http://localhost:8787" + MUX_ROOT + "serv/bool/false/2")
 	AssertEqual(res.StatusCode, 200, "Delete ResponseCode", t)
 
 }

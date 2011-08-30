@@ -50,6 +50,9 @@ func RegisterMarshaller(mime string, m *Marshaller) {
 }
 //Get an already registered Marshaller
 func GetMarshallerByMime(mime string) (m *Marshaller) {
+	if marshallers == nil {
+		marshallers = make(map[string]*Marshaller, 0)
+	}
 	m, _ = marshallers[mime]
 	return
 }

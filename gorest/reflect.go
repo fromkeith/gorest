@@ -407,7 +407,7 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 				return bytarr, restStatus{http.StatusOK, ""}
 			} else {
 				//This is an internal error with the registered marshaller not being able to marshal internal structs
-				return nil, restStatus{http.StatusInternalServerError, "Internal server error."}
+				return nil, restStatus{http.StatusInternalServerError, "Internal server error. Could not Marshal/UnMarshal data: "+err.String()}
 			}
 		} else {
 
@@ -417,7 +417,7 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 
 	//Just in case the whole civilization crashes and it falls thru to here. This shall never happen though... well tested
 	log.Panic("There was a problem with request handing. Probably a bug, please report.") //Add client data, and send support alert
-	return nil, restStatus{http.StatusInternalServerError, "Internal server error."}
+	return nil, restStatus{http.StatusInternalServerError, "GoRest: Internal server error."}
 }
 
 func makeArg(data string, template reflect.Type, mime string) (reflect.Value, restStatus) {

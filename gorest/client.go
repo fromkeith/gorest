@@ -33,8 +33,8 @@ import (
 	"strconv"
 	"strings"
 	"io/ioutil"
+	"url"
 )
-
 
 var sharedClient *http.Client
 
@@ -157,54 +157,54 @@ func (this *RequestBuilder) AddCookie(cookie *http.Cookie) *RequestBuilder {
 	return this
 }
 
-func (this *RequestBuilder) Delete(url string)(*http.Response, os.Error ){
-	u, err := http.ParseURL(url)
+func (this *RequestBuilder) Delete(url_ string) (*http.Response, os.Error) {
+	u, err := url.Parse(url_)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	this._req.URL = u
 	this._req.Method = DELETE
-	
+
 	return this.client.Do(this._req)
 }
 
-func (this *RequestBuilder) Head(url string)(*http.Response, os.Error ){
-	u, err := http.ParseURL(url)
+func (this *RequestBuilder) Head(url_ string) (*http.Response, os.Error) {
+	u, err := url.Parse(url_)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	this._req.URL = u
 	this._req.Method = HEAD
-	
+
 	return this.client.Do(this._req)
 }
 
-func (this *RequestBuilder) Options(opts *[]string,url string)(*http.Response, os.Error ){
-	u, err := http.ParseURL(url)
+func (this *RequestBuilder) Options(opts *[]string, url_ string) (*http.Response, os.Error) {
+	u, err := url.Parse(url_)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	this._req.URL = u
 	this._req.Method = OPTIONS
-	
+
 	res, err := this.client.Do(this._req)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
-	
-	for _,str:= range res.Header["Allow"]{
-		*opts = append(*opts,strings.Trim(str," "))
+
+	for _, str := range res.Header["Allow"] {
+		*opts = append(*opts, strings.Trim(str, " "))
 	}
 	return res, err
 }
 
-func (this *RequestBuilder) Get(i interface{}, url string) (*http.Response, os.Error ){
-	u, err := http.ParseURL(url)
+func (this *RequestBuilder) Get(i interface{}, url_ string) (*http.Response, os.Error) {
+	u, err := url.Parse(url_)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	this._req.URL = u
@@ -212,7 +212,7 @@ func (this *RequestBuilder) Get(i interface{}, url string) (*http.Response, os.E
 
 	res, err := this.client.Do(this._req)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	buf := new(bytes.Buffer)
@@ -221,19 +221,19 @@ func (this *RequestBuilder) Get(i interface{}, url string) (*http.Response, os.E
 
 	err = bytesToI(buf, i, this.defaultContentType)
 
-	return res,err
+	return res, err
 }
-func (this *RequestBuilder) Post(i interface{}, url string)(*http.Response, os.Error ){
-	u, err := http.ParseURL(url)
+func (this *RequestBuilder) Post(i interface{}, url_ string) (*http.Response, os.Error) {
+	u, err := url.Parse(url_)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	this._req.URL = u
 	this._req.Method = POST
-	bb,err:= interfaceToBytes(i,this.defaultContentType)
-	if err!=nil{
-		return nil,err
+	bb, err := interfaceToBytes(i, this.defaultContentType)
+	if err != nil {
+		return nil, err
 	}
 	this._req.Body = ioutil.NopCloser(bytes.NewBuffer(bb))
 

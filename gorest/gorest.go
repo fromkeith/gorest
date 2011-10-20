@@ -29,6 +29,7 @@ import (
 	"http"
 	"strconv"
 	"strings"
+	"url"
 )
 
 type GoRestService interface {
@@ -48,7 +49,7 @@ type endPointStruct struct {
 	name                 string
 	requestMethod        string
 	signiture            string
-	muxRoot				 string
+	muxRoot              string
 	root                 string
 	nonParamPathPart     map[int]string
 	params               []param //path parameter name and position
@@ -77,7 +78,6 @@ func (err restStatus) String() string {
 	return err.reason
 }
 
-
 type serviceMetaData struct {
 	template     interface{}
 	consumesMime string
@@ -85,7 +85,6 @@ type serviceMetaData struct {
 	root         string
 	realm        string
 }
-
 
 var restManager *manager
 var handlerInitialised bool
@@ -107,40 +106,38 @@ func init() {
 
 }
 
-
 func RegisterService(h interface{}) {
-	RegisterServiceOnPath("",h)
+	RegisterServiceOnPath("", h)
 }
 
-func RegisterServiceOnPath(root string,h interface{}){
+func RegisterServiceOnPath(root string, h interface{}) {
 	//We only initialise the handler management once we know gorest is being used to hanlde request as well, not just client.
 	if !handlerInitialised {
 		restManager = newManager()
 		handlerInitialised = true
 	}
-	
-	if root == "/"{
+
+	if root == "/" {
 		root = ""
 	}
-	
-	if root !=""{
-		root = strings.Trim(root,"/")
-		root = "/"+root
+
+	if root != "" {
+		root = strings.Trim(root, "/")
+		root = "/" + root
 	}
 
-	registerService(root,h)
+	registerService(root, h)
 }
 
-
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	url,err := http.URLUnescape(r.RawURL)
-	if err!=nil{
-		println("Could not serve page: ", r.RawURL)
+	url_, err := url.QueryUnescape(r.URL.Raw)
+	if err != nil {
+		println("Could not serve page: ", r.URL.Raw)
 		w.WriteHeader(400)
 		w.Write([]byte("Client sent bad request."))
 		return
 	}
-	if ep, args, queryArgs, found := getEndPointByUrl(r.Method, url); found {
+	if ep, args, queryArgs, found := getEndPointByUrl(r.Method, url_); found {
 
 		ctx := new(Context)
 		ctx.writer = w
@@ -152,7 +149,7 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if state.httpCode == http.StatusOK {
 			switch ep.requestMethod {
-			case POST, PUT, DELETE,HEAD,OPTIONS:
+			case POST, PUT, DELETE, HEAD, OPTIONS:
 				{
 					if ctx.responseCode == 0 {
 						w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
@@ -191,7 +188,7 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		println("Could not serve page: ", url)
+		println("Could not serve page: ", url_)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("The resource in the requested path could not be found."))
 	}
@@ -229,10 +226,9 @@ func ServeStandAlone(port int) {
 func _manager() *manager {
 	return restManager
 }
-func Handle()  *manager{
+func Handle() *manager {
 	return restManager
 }
-
 
 func getDefaultResponseCode(method string) int {
 	switch method {

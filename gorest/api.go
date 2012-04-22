@@ -26,46 +26,70 @@
 package gorest
 
 import (
-	"http"
+	"net/http"
 	"strconv"
+	"time"
+)
+
+const (
+	XSXRF_COOKIE_NAME = "X-Xsrf-Cookie"
+	XSXRF_PARAM_NAME  = "xsrft"
 )
 
 type EndPoint bool
 
-
 type RestService struct {
 	Context *Context
+	rb      *ResponseBuilder
 }
-
 
 func (serv RestService) ResponseBuilder() *ResponseBuilder {
-	r := ResponseBuilder{ctx: serv.Context}
-	return &r
+	if serv.rb == nil {
+		serv.rb = &ResponseBuilder{ctx: serv.Context}
+	}
+	return serv.rb
+}
+func (serv RestService) Session() SessionData {
+	return serv.Context.relSessionData
 }
 
+type SessionData interface {
+	SessionId() string
+}
 type Context struct {
-	writer  http.ResponseWriter
-	request *http.Request
-	args    map[string]string
-	queryArgs    map[string]string
-
+	writer         http.ResponseWriter
+	request        *http.Request
+	xsrftoken      string
+	args           map[string]string
+	queryArgs      map[string]string
+	relSessionData SessionData
 	//Response flags
 	overide            bool
 	responseCode       int
 	responseMimeSet    bool
 	dataHasBeenWritten bool
-	
 }
 
 func (c *Context) Request() *http.Request {
 	return c.request
 }
 
-
 type ResponseBuilder struct {
 	ctx *Context
 }
 
+func (this *ResponseBuilder) SessionToken() string {
+	return this.ctx.xsrftoken
+}
+
+func (this *ResponseBuilder) SetSessionToken(token string, path string, expires time.Time) {
+	this.ctx.xsrftoken = token
+	this.SetHeader(XSXRF_COOKIE_NAME, token)
+	http.SetCookie(this.ctx.writer, &http.Cookie{Name: XSXRF_COOKIE_NAME, Value: token, Path: path, Expires: expires})
+}
+func (this *ResponseBuilder) RemoveSessionToken(path string) {
+	this.SetSessionToken("", path, time.Unix(0, 0).UTC())
+}
 func (this *ResponseBuilder) writer() http.ResponseWriter {
 	return this.ctx.writer
 }
@@ -79,7 +103,6 @@ func (this *ResponseBuilder) SetContentType(mime string) *ResponseBuilder {
 	this.writer().Header().Set("Content-Type", mime)
 	return this
 }
-
 
 //Entity related
 func (this *ResponseBuilder) Overide(overide bool) {
@@ -109,12 +132,10 @@ func (this *ResponseBuilder) Write(data []byte) *ResponseBuilder {
 	return this
 }
 
-
 func (this *ResponseBuilder) LongPoll(delay int, producer func(interface{}) interface{}) *ResponseBuilder {
 
 	return this
 }
-
 
 //Cache related
 func (this *ResponseBuilder) CachePublic() *ResponseBuilder {
@@ -158,7 +179,6 @@ func (this *ResponseBuilder) CacheClearAllOptions() *ResponseBuilder {
 	return this
 }
 
-
 func (this *ResponseBuilder) ConnectionKeepAlive() *ResponseBuilder {
 	this.writer().Header().Set("Connection", "keep-alive")
 	return this
@@ -197,7 +217,6 @@ func (this *ResponseBuilder) MovedTemporarily(location string) *ResponseBuilder 
 	return this
 }
 
-
 func (this *ResponseBuilder) Age(seconds int) *ResponseBuilder {
 	this.writer().Header().Set("Age", strconv.Itoa(seconds))
 	return this
@@ -213,4 +232,18 @@ func (this *ResponseBuilder) Allow(tag string) *ResponseBuilder {
 
 func (this *ResponseBuilder) setCache(option string) {
 	this.writer().Header().Add("Cache-control", option)
+}
+
+func (this *ResponseBuilder) SetHeader(key string, value string) *ResponseBuilder {
+	this.writer().Header().Set(key, value)
+	return this
+}
+
+func (this *ResponseBuilder) AddHeader(key string, value string) *ResponseBuilder {
+	this.writer().Header().Add(key, value)
+	return this
+}
+func (this *ResponseBuilder) DelHeader(key string) *ResponseBuilder {
+	this.writer().Header().Del(key)
+	return this
 }

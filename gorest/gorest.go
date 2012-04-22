@@ -26,10 +26,11 @@
 package gorest
 
 import (
-	"http"
+	"net/http"
 	"strconv"
 	"strings"
-	"url"
+	"net/url"
+	"log"
 )
 
 type GoRestService interface {
@@ -130,20 +131,21 @@ func RegisterServiceOnPath(root string, h interface{}) {
 }
 
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	url_, err := url.QueryUnescape(r.URL.Raw)
+	url_, err := url.QueryUnescape(r.URL.RequestURI())
 	if err != nil {
-		println("Could not serve page: ", r.URL.Raw)
+		log.Println("Could not serve page: ", r.URL.RequestURI(),"Error:",err)
 		w.WriteHeader(400)
 		w.Write([]byte("Client sent bad request."))
 		return
 	}
-	if ep, args, queryArgs, found := getEndPointByUrl(r.Method, url_); found {
+	if ep, args, queryArgs,xsrft, found := getEndPointByUrl(r.Method, url_); found {
 
 		ctx := new(Context)
 		ctx.writer = w
 		ctx.request = r
 		ctx.args = args
 		ctx.queryArgs = queryArgs
+		ctx.xsrftoken =xsrft
 
 		data, state := prepareServe(ctx, ep)
 
@@ -183,12 +185,13 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 		} else {
+			log.Println("Problem with request. Error:",state.httpCode,state.reason, "; Request: ",r.URL.RequestURI())
 			w.WriteHeader(state.httpCode)
 			w.Write([]byte(state.reason))
 		}
 
 	} else {
-		println("Could not serve page: ", url_)
+		log.Println("Could not serve page: ", url_)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("The resource in the requested path could not be found."))
 	}
@@ -214,7 +217,7 @@ func (man *manager) addEndPoint(ep endPointStruct) {
 }
 
 func HandleFunc(w http.ResponseWriter, r *http.Request) {
-	//    log.Println("Serving URL : ",r.RawURL)
+	log.Println("Serving URL : ",r.URL.RequestURI())
 	restManager.ServeHTTP(w, r)
 }
 

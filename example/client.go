@@ -23,7 +23,7 @@ func StartClient() {
 	
 	endTime:= time.Nanoseconds()
 	
-	println("Process took: ", endTime-startSecs)
+	println("Process took: ", seconds := float64(endTime-startSecs)/1e9)
 	
 	
 	

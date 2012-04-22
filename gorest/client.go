@@ -26,22 +26,21 @@
 package gorest
 
 import (
-	"http"
 	"bytes"
+	"errors"
 	"io"
-	"os"
+	"io/ioutil"
+	"net/http"
 	"strconv"
 	"strings"
-	"io/ioutil"
-	"url"
 )
 
 var sharedClient *http.Client
 
 //Use this if you have a *http.Client instance that you specifically want to use. 
 //Otherwise just use NewRequestBuilder(), which uses the http.Client maintained by GoRest.
-func NewRequestBuilderFromClient(client *http.Client) (*RequestBuilder, os.Error) {
-	req, err := http.NewRequest(GET, "http://localhost:8787/", nil)
+func NewRequestBuilderFromClient(client *http.Client, url string) (*RequestBuilder, error) {
+	req, err := http.NewRequest(GET, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53,11 +52,11 @@ func NewRequestBuilderFromClient(client *http.Client) (*RequestBuilder, os.Error
 //Although http.Client is useable concurrently, an instance of RequestBuilder is not safe for this. 
 //Because of http.Client's persistent(cached TCP connections) and concurrent nature, 
 //this can be used safely multiple times from different go routines. 
-func NewRequestBuilder() (*RequestBuilder, os.Error) {
+func NewRequestBuilder(url string) (*RequestBuilder, error) {
 	if sharedClient == nil {
-		sharedClient = new(http.Client)
+		sharedClient = new(http.Client) //DefaultClient
 	}
-	req, err := http.NewRequest(GET, "http://localhost:8787/", nil)
+	req, err := http.NewRequest(GET, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -157,42 +156,29 @@ func (this *RequestBuilder) AddCookie(cookie *http.Cookie) *RequestBuilder {
 	return this
 }
 
-func (this *RequestBuilder) Delete(url_ string) (*http.Response, os.Error) {
-	u, err := url.Parse(url_)
-	if err != nil {
-		return nil, err
-	}
-
-	this._req.URL = u
+func (this *RequestBuilder) Delete() (*http.Response, error) {
+	//	u, err := url.Parse(url_)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	//this._req.URL = u
 	this._req.Method = DELETE
 
 	return this.client.Do(this._req)
 }
 
-func (this *RequestBuilder) Head(url_ string) (*http.Response, os.Error) {
-	u, err := url.Parse(url_)
-	if err != nil {
-		return nil, err
-	}
-
-	this._req.URL = u
+func (this *RequestBuilder) Head() (*http.Response, error) {
 	this._req.Method = HEAD
-
 	return this.client.Do(this._req)
 }
 
-func (this *RequestBuilder) Options(opts *[]string, url_ string) (*http.Response, os.Error) {
-	u, err := url.Parse(url_)
-	if err != nil {
-		return nil, err
-	}
-
-	this._req.URL = u
+func (this *RequestBuilder) Options(opts *[]string) (*http.Response, error) {
 	this._req.Method = OPTIONS
 
 	res, err := this.client.Do(this._req)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 
 	for _, str := range res.Header["Allow"] {
@@ -201,37 +187,28 @@ func (this *RequestBuilder) Options(opts *[]string, url_ string) (*http.Response
 	return res, err
 }
 
-func (this *RequestBuilder) Get(i interface{}, url_ string) (*http.Response, os.Error) {
-	u, err := url.Parse(url_)
-	if err != nil {
-		return nil, err
-	}
-
-	this._req.URL = u
+func (this *RequestBuilder) Get(i interface{}, expecting int) (*http.Response, error) {
+	//this._req.URL = u
 	this._req.Method = GET
 
 	res, err := this.client.Do(this._req)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 
-	buf := new(bytes.Buffer)
-	io.Copy(buf, res.Body)
-	res.Body.Close()
+	if res.StatusCode == expecting {
+		buf := new(bytes.Buffer)
+		io.Copy(buf, res.Body)
+		res.Body.Close()
+		err = BytesToInterface(buf, i, this.defaultContentType)
+		return res, nil
+	}
 
-	err = bytesToI(buf, i, this.defaultContentType)
-
-	return res, err
+	return res, errors.New(res.Status)
 }
-func (this *RequestBuilder) Post(i interface{}, url_ string) (*http.Response, os.Error) {
-	u, err := url.Parse(url_)
-	if err != nil {
-		return nil, err
-	}
-
-	this._req.URL = u
+func (this *RequestBuilder) Post(i interface{}) (*http.Response, error) {
 	this._req.Method = POST
-	bb, err := interfaceToBytes(i, this.defaultContentType)
+	bb, err := InterfaceToBytes(i, this.defaultContentType)
 	if err != nil {
 		return nil, err
 	}

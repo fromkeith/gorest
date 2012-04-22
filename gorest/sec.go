@@ -29,7 +29,7 @@ package gorest
 
 var authorizers map[string]Authorizer
 
-type Authorizer func(string,string)(bool,bool)
+type Authorizer func(string,string)(bool,bool,SessionData)
 
 func RegisterRealmAuthorizer(realm string,auth Authorizer){
 	if authorizers ==nil{
@@ -50,7 +50,7 @@ func GetAuthorizer(realm string)(a Authorizer){
 }
 
 
-func DefaultAuthorizer(id string,role string)(bool,bool) {
-	return true, true
+func DefaultAuthorizer(id string,role string)(bool,bool,SessionData) {
+	return true, true,nil
 }
 

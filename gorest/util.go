@@ -26,13 +26,14 @@
 package gorest
 
 import (
-	"os"
 	"bytes"
+	"errors"
 	"reflect"
 	"strconv"
 )
 
-func interfaceToBytes(i interface{}, mime string) ([]byte, os.Error) {
+
+func InterfaceToBytes(i interface{}, mime string) ([]byte, error) {
 	v := reflect.ValueOf(i)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -47,21 +48,20 @@ func interfaceToBytes(i interface{}, mime string) ([]byte, os.Error) {
 	case reflect.String:
 		return []byte(v.String()), nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return []byte(strconv.Itoa64(v.Int())), nil
+		return []byte(strconv.FormatInt(v.Int(), 10)), nil
 	case reflect.Struct, reflect.Slice, reflect.Array, reflect.Map:
 		m := GetMarshallerByMime(mime)
 		return m.Marshal(i)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return []byte(strconv.Uitoa64(v.Uint())), nil
+		return []byte(strconv.FormatUint(v.Uint(), 10)), nil
 	case reflect.Float32, reflect.Float64:
-		return []byte(strconv.FtoaN(v.Float(), 'g', -1, v.Type().Bits())), nil
+		return []byte(strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits())), nil
 	default:
-		return nil, os.NewError("Type " + v.Type().Name() + " is not handled by GoRest.")
+		return nil, errors.New("Type " + v.Type().Name() + " is not handled by GoRest.")
 	}
 	return nil, nil
 }
-func bytesToI(buf *bytes.Buffer, i interface{}, mime string) os.Error {
-
+func BytesToInterface(buf *bytes.Buffer, i interface{}, mime string) error {
 	v := reflect.ValueOf(i)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -70,9 +70,9 @@ func bytesToI(buf *bytes.Buffer, i interface{}, mime string) os.Error {
 	switch v.Kind() {
 	case reflect.Bool:
 
-		n, err := strconv.Atob(buf.String())
+		n, err := strconv.ParseBool(buf.String())
 		if err != nil {
-			return os.NewError("Invalid value. " + err.String())
+			return errors.New("Invalid value. " + err.Error())
 		}
 		reflect.ValueOf(i).Elem().SetBool(n)
 		break
@@ -84,28 +84,28 @@ func bytesToI(buf *bytes.Buffer, i interface{}, mime string) os.Error {
 		return m.Unmarshal(buf.Bytes(), i)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 
-		n, err := strconv.Atoi64(buf.String())
+		n, err := strconv.ParseInt(buf.String(), 10, 64)
 		if err != nil || v.OverflowInt(n) {
-			return os.NewError("Invalid value. " + err.String())
+			return errors.New("Invalid value. " + err.Error())
 		}
 		reflect.ValueOf(i).Elem().SetInt(n)
 		break
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		n, err := strconv.Atoui64(buf.String())
+		n, err := strconv.ParseUint(buf.String(), 10, 64)
 		if err != nil || v.OverflowUint(n) {
-			return os.NewError("Invalid value. " + err.String())
+			return errors.New("Invalid value. " + err.Error())
 		}
 
 		reflect.ValueOf(i).Elem().SetUint(n)
 		break
 	case reflect.Float32, reflect.Float64:
-		n, err := strconv.AtofN(buf.String(), v.Type().Bits())
+		n, err := strconv.ParseFloat(buf.String(), v.Type().Bits())
 		if err != nil || v.OverflowFloat(n) {
-			return os.NewError("Invalid value. " + err.String())
+			return errors.New("Invalid value. " + err.Error())
 		}
 		reflect.ValueOf(i).Elem().SetFloat(n)
 	default:
-		return os.NewError("Type " + v.Type().Name() + " is not handled by GoRest.")
+		return errors.New("Type " + v.Type().Name() + " is not handled by GoRest.")
 	}
 	return nil
 

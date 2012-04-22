@@ -31,7 +31,7 @@ import (
 	"strings"
 	"log"
 	"bytes"
-	"http"
+	"net/http"
 	"io"
 )
 
@@ -291,9 +291,9 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 	//Check Authorization
 	
 	if servMeta.realm != ""{
-		if cook,err:= context.request.Cookie("RestId");err==nil{
-			inRealm, inRole:= GetAuthorizer(servMeta.realm)(cook.Value,ep.role)
-			
+		if context.xsrftoken != ""{
+			inRealm, inRole,sess:= GetAuthorizer(servMeta.realm)(context.xsrftoken,ep.role)
+			context.relSessionData = sess
 			if ep.role !=""{
 				if inRealm && inRole{
 					goto Run
@@ -403,11 +403,11 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 
 		if len(ret) == 1 { //This is when we have just called a GET
 			//At this stage we should be ready to write the response to client
-			if bytarr, err := interfaceToBytes(ret[0].Interface(), servMeta.producesMime); err == nil {
+			if bytarr, err := InterfaceToBytes(ret[0].Interface(), servMeta.producesMime); err == nil {
 				return bytarr, restStatus{http.StatusOK, ""}
 			} else {
 				//This is an internal error with the registered marshaller not being able to marshal internal structs
-				return nil, restStatus{http.StatusInternalServerError, "Internal server error. Could not Marshal/UnMarshal data: "+err.String()}
+				return nil, restStatus{http.StatusInternalServerError, "Internal server error. Could not Marshal/UnMarshal data: "+err.Error()}
 			}
 		} else {
 
@@ -426,12 +426,15 @@ func makeArg(data string, template reflect.Type, mime string) (reflect.Value, re
 	if data == "" {
 		return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, ""}
 	}
+	/*else{
+		log.Println("Data sent: ",data)
+	}*/
 
 	buf := bytes.NewBufferString(data)
-	err := bytesToI(buf, i, mime)
+	err := BytesToInterface(buf, i, mime)
 
 	if err != nil {
-		return reflect.ValueOf(nil), restStatus{http.StatusBadRequest, "Error Unmarshalling data using " + mime + ". Client sent incompetible data format in entity."}
+		return reflect.ValueOf(nil), restStatus{http.StatusBadRequest, "Error Unmarshalling data using " + mime + ". Client sent incompetible data format in entity. ("+ err.Error()+")"}
 	}
 	return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, ""}
 }

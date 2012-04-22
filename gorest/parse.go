@@ -32,7 +32,6 @@ import (
 	"reflect"
 )
 
-
 type argumentData struct {
 	parameter param
 	data      string
@@ -44,7 +43,6 @@ type param struct {
 }
 
 var ALLOWED_PAR_TYPES = []string{"string", "int", "bool", "float32", "float64"}
-
 
 func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, name string) serviceMetaData {
 	md := new(serviceMetaData)
@@ -59,7 +57,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if tag := tags.Get("consumes"); tag != "" {
 		md.consumesMime = tag
 		if GetMarshallerByMime(tag) == nil {
-			panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
+			log.Panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
 		}
 	} else {
 		md.consumesMime = Application_Json //Default	
@@ -67,7 +65,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if tag := tags.Get("produces"); tag != "" {
 		md.producesMime = tag
 		if GetMarshallerByMime(tag) == nil {
-			panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
+			log.Panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
 		}
 	} else {
 		md.consumesMime = Application_Json //Default	
@@ -76,7 +74,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if tag := tags.Get("realm"); tag != "" {
 		md.realm = tag
 		if GetAuthorizer(tag) == nil {
-			panic("The realm:[" + tag + "], is not registered. Please register this realm before registering your service.")
+			log.Panic("The realm:[" + tag + "], is not registered. Please register this realm before registering your service.")
 		}
 	}
 
@@ -109,7 +107,7 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 			serviceRoot = strings.TrimRight(serviceRoot, "/")
 			ms.signiture = serviceRoot + "/" + strings.Trim(tag, "/")
 		} else {
-			panic("Endpoint declaration must have the tags 'method' and 'path' ")
+			log.Panic("Endpoint declaration must have the tags 'method' and 'path' ")
 		}
 
 		if tag := tags.Get("output"); tag != "" {
@@ -124,7 +122,7 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 					ms.outputTypeIsMap = true
 					ms.outputType = ms.outputType[11:]
 				} else {
-					panic("Only string keyed maps e.g( map[string]... ) are allowed on the [output] tag. Endpoint: " + ms.signiture)
+					log.Panic("Only string keyed maps e.g( map[string]... ) are allowed on the [output] tag. Endpoint: " + ms.signiture)
 				}
 
 			}
@@ -149,7 +147,7 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 					ms.postdataTypeIsMap = true
 					ms.postdataType = ms.postdataType[11:]
 				} else {
-					panic("Only string keyed maps e.g( map[string]... ) are allowed on the [postdata] tag. Endpoint: " + ms.signiture)
+					log.Panic("Only string keyed maps e.g( map[string]... ) are allowed on the [postdata] tag. Endpoint: " + ms.signiture)
 				}
 
 			}
@@ -159,7 +157,8 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 		return *ms
 	}
 
-	panic("Endpoint declaration must have the tags 'method' and 'path' ")
+	log.Panic("Endpoint declaration must have the tags 'method' and 'path' ")
+	return *ms //Should not get here
 
 }
 func parseParams(e *endPointStruct) {
@@ -168,18 +167,16 @@ func parseParams(e *endPointStruct) {
 	e.queryParams = make([]param, 0)
 	e.nonParamPathPart = make(map[int]string, 0)
 
-
-
 	pathPart := e.signiture
 	queryPart := ""
 
 	if i := strings.Index(e.signiture, "?"); i != -1 {
-		
+
 		pathPart = e.signiture[:i]
 		//e.root = pathPart
 		pathPart = strings.TrimRight(pathPart, "/")
 		queryPart = e.signiture[i+1:]
-		
+
 		//Extract Query Parameters
 
 		for pos, str1 := range strings.Split(queryPart, "&") {
@@ -188,29 +185,27 @@ func parseParams(e *endPointStruct) {
 
 				for _, par := range e.queryParams {
 					if par.name == parName {
-						panic("Duplicate Query Parameter name(" + parName + ") in REST path: " + e.signiture)
+						log.Panic("Duplicate Query Parameter name(" + parName + ") in REST path: " + e.signiture)
 					}
 				}
 				//e.queryParams[len(e.queryParams)] = param{pos, parName, typeName}
 				e.queryParams = append(e.queryParams, param{pos, parName, typeName})
 			} else {
-				panic("Please check that your Query Parameters are configured correctly for endpoint: " + e.signiture)
+				log.Panic("Please check that your Query Parameters are configured correctly for endpoint: " + e.signiture)
 			}
 		}
 	}
-	
+
 	if i := strings.Index(pathPart, "{"); i != -1 {
 		e.root = pathPart[:i]
-	}else{
+	} else {
 		e.root = pathPart
 	}
-		
-		
 
 	//Extract Path Parameters
 	for pos, str1 := range strings.Split(pathPart, "/") {
 		e.signitureLen++
-		
+
 		if strings.HasPrefix(str1, "{") && strings.HasSuffix(str1, "}") { //This just ensures we re dealing with a varibale not normal path.
 
 			parName, typeName := getVarTypePair(str1, e.signiture)
@@ -224,7 +219,7 @@ func parseParams(e *endPointStruct) {
 			}
 			for _, par := range e.params {
 				if par.name == parName {
-					panic("Duplicate Path Parameter name(" + parName + ") in REST path: " + e.signiture)
+					log.Panic("Duplicate Path Parameter name(" + parName + ") in REST path: " + e.signiture)
 				}
 			}
 
@@ -232,25 +227,25 @@ func parseParams(e *endPointStruct) {
 			e.paramLen++
 		} else {
 			e.nonParamPathPart[pos] = str1
-			
+
 		}
 	}
-	
-	e.root = strings.TrimRight(e.root,"/")
+
+	e.root = strings.TrimRight(e.root, "/")
 
 	if e.isVariableLength && e.paramLen > 1 {
-		panic("Variable length endpoints can only have one parameter declaration: " + pathPart)
+		log.Panic("Variable length endpoints can only have one parameter declaration: " + pathPart)
 	}
 
 	for key, ep := range _manager().endpoints {
 		if ep.root == e.root && ep.signitureLen == e.signitureLen && ep.requestMethod == e.requestMethod {
-			panic("Can not register two endpoints with same request-method(" + ep.requestMethod + "), same root and same amount of parameters: " + e.signiture + " VS " + ep.signiture)
+			log.Panic("Can not register two endpoints with same request-method(" + ep.requestMethod + "), same root and same amount of parameters: " + e.signiture + " VS " + ep.signiture)
 		}
 		if ep.requestMethod == e.requestMethod && pathPart == key {
-			panic("Endpoint already registered: " + pathPart)
+			log.Panic("Endpoint already registered: " + pathPart)
 		}
 		if e.isVariableLength && (strings.Index(ep.root+"/", e.root+"/") == 0 || strings.Index(e.root+"/", ep.root+"/") == 0) && ep.requestMethod == e.requestMethod {
-			panic("Variable length endpoints can only be mounted on a unique root. Root already used: " + ep.root + " <> "+ e.root)
+			log.Panic("Variable length endpoints can only be mounted on a unique root. Root already used: " + ep.root + " <> " + e.root)
 		}
 	}
 }
@@ -260,13 +255,13 @@ func getVarTypePair(part string, sign string) (parName string, typeName string) 
 	temp := strings.Trim(part, "{}")
 	ind := 0
 	if ind = strings.Index(temp, ":"); ind == -1 {
-		panic("Please ensure that parameter names(" + temp + ") have associated types in REST path: " + sign)
+		log.Panic("Please ensure that parameter names(" + temp + ") have associated types in REST path: " + sign)
 	}
 	parName = temp[:ind]
 	typeName = temp[ind+1:]
 
 	if !isAllowedParamType(typeName) {
-		panic("Type " + typeName + " is not allowed for Path/Query-parameters in REST path: " + sign)
+		log.Panic("Type " + typeName + " is not allowed for Path/Query-parameters in REST path: " + sign)
 	}
 
 	return
@@ -281,8 +276,7 @@ func isAllowedParamType(typeName string) bool {
 	return false
 }
 
-
-func getEndPointByUrl(method string, url string) (endPointStruct, map[string]string, map[string]string, bool) {
+func getEndPointByUrl(method string, url string) (endPointStruct, map[string]string, map[string]string, string, bool) {
 	//println("Getting:",url)
 
 	pathPart := url
@@ -306,13 +300,12 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 		//println("Path part: ", pathPart, loopEp.root, loopEp.signitureLen, totalParts)
 		if loopEp.isVariableLength && (strings.Index(pathPart, loopEp.root+"/") == 0) && loopEp.requestMethod == method {
 			ep = &loopEp
-			varsPart:=strings.Trim(pathPart[len(loopEp.root):],"/")
+			varsPart := strings.Trim(pathPart[len(loopEp.root):], "/")
 			//println("::::::::::::::::Root",pathPart,">>>>>>>Vars",varsPart)
 			for upos, str1 := range strings.Split(varsPart, "/") {
 				pathArgs[string(upos)] = strings.Trim(str1, " ")
 			}
-		}
-		if (strings.Index(pathPart+"/", loopEp.root+"/") == 0) && loopEp.signitureLen == totalParts && loopEp.requestMethod == method {
+		} else if (strings.Index(pathPart+"/", loopEp.root+"/") == 0) && loopEp.signitureLen == totalParts && loopEp.requestMethod == method {
 			ep = &loopEp
 			//We first make sure that the other parts of the path that are not parameters do actully match with the signature.
 			//If not we exit. We do not have to cary on looking since we only allow one registration per root and length.
@@ -320,8 +313,8 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 				for upos, str1 := range strings.Split(pathPart, "/") {
 					if upos == pos {
 						if name != str1 {
-							println("Not found:", pathPart)
-							return *epRet, pathArgs, queryArgs, false //Path not found
+							log.Println("Not found:", pathPart)
+							return *epRet, pathArgs, queryArgs, "", false //Path not found
 						}
 						break
 					}
@@ -340,25 +333,31 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 		}
 
 		if ep != nil {
-
+			xsrft := ""
 			//Extract Query Arguments: These are optional in the query, so some or all of them might not be there.
 			//Also, if they are there, they do not have to be in the same order they were sepcified in on the declaration signature.
 			for _, str1 := range strings.Split(queryPart, "&") {
 				if i := strings.Index(str1, "="); i != -1 {
 					pName := str1[:i]
 					dataString := str1[i+1:]
-					for _, par := range ep.queryParams {
-						if par.name == pName {
-							queryArgs[pName] = strings.Trim(dataString, " ")
-							break
+					if pName == XSXRF_PARAM_NAME {
+						xsrft = strings.Trim(dataString, " ")
+						log.Print("Session Id:", xsrft)
+					} else {
+						for _, par := range ep.queryParams {
+							if par.name == pName {
+								queryArgs[pName] = strings.Trim(dataString, " ")
+								break
+							}
 						}
 					}
+
 				}
 			}
 
-			return *ep, pathArgs, queryArgs, true //Path found
+			return *ep, pathArgs, queryArgs, xsrft, true //Path found
 		}
 	}
 
-	return *epRet, pathArgs, queryArgs, false //Path not found
+	return *epRet, pathArgs, queryArgs, "", false //Path not found
 }

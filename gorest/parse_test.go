@@ -26,12 +26,11 @@
 package gorest
 
 import (
-	"testing"
 	"bytes"
-	"json"
+	"encoding/json"
 	"strconv"
+	"testing"
 )
-
 
 func TestInterfaceToBytes(t *testing.T) {
 
@@ -150,7 +149,6 @@ func TestBytesToI(t *testing.T) {
 	}
 
 }
-
 
 func AssertEqual(given interface{}, expecting interface{}, compared string, t *testing.T) {
 	if expecting != given {

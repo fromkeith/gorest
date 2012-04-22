@@ -25,19 +25,15 @@
 
 package gorest
 
-import (
-	"json"
-	"os"
-)
+import "encoding/json"
 
 //A Marshaller represents the two functions used to marshal/unmarshal interfaces back and forth.
 type Marshaller struct {
-	Marshal   func(v interface{}) ([]byte, os.Error)
-	Unmarshal func(data []byte, v interface{}) os.Error
+	Marshal   func(v interface{}) ([]byte, error)
+	Unmarshal func(data []byte, v interface{}) error
 }
 
 var marshallers map[string]*Marshaller
-
 
 //Register a Marshaller. These registered Marshallers are shared by the client or servers side usage of gorest.
 func RegisterMarshaller(mime string, m *Marshaller) {
@@ -48,6 +44,7 @@ func RegisterMarshaller(mime string, m *Marshaller) {
 		marshallers[mime] = m
 	}
 }
+
 //Get an already registered Marshaller
 func GetMarshallerByMime(mime string) (m *Marshaller) {
 	if marshallers == nil {
@@ -57,19 +54,17 @@ func GetMarshallerByMime(mime string) (m *Marshaller) {
 	return
 }
 
-
 //Predefined Marshallers
-
 
 //JSON: This makes the JSON Marshaller. The Marshaller uses pkg: json
 func NewJSONMarshaller() *Marshaller {
 	m := Marshaller{jsonMarshal, jsonUnMarshal}
 	return &m
 }
-func jsonMarshal(v interface{}) ([]byte, os.Error) {
+func jsonMarshal(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
-func jsonUnMarshal(data []byte, v interface{}) os.Error {
+func jsonUnMarshal(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 

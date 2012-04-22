@@ -26,10 +26,10 @@
 package gorest
 
 import (
-	"testing"
+	"net/http"
 	"strconv"
 	"strings"
-	"http"
+	"testing"
 )
 
 type User struct {
@@ -39,6 +39,7 @@ type User struct {
 	Age       int
 	Weight    float32
 }
+
 //Tests:
 //	Path data types: string,int,bool,float32,float64 
 //	Returned(GET) data types: all basic ones above plus string keyed maps and structs.
@@ -145,7 +146,7 @@ func (serv Service) GetStringSimilarPath(name string) string {
 }
 
 func (serv Service) GetString(Bool bool, Int int, Flow int, Name string) string {
-	return "Hello" + strconv.Btoa(Bool) + strconv.Itoa(Int) + "/" + Name + strconv.Itoa(Flow)
+	return "Hello" + strconv.FormatBool(Bool) + strconv.Itoa(Int) + "/" + Name + strconv.Itoa(Flow)
 }
 func (serv Service) GetInteger(Bool bool, Int int) int {
 	return Int - 5
@@ -178,7 +179,6 @@ func (serv Service) GetArrayStruct(FName string, Age int) []User {
 	users = append(users, User{"user2", FName, "Soap2", Age, 89.7})
 	return users
 }
-
 
 func (serv Service) PostString(posted string, Bool bool, Int int) {
 	if posted == "Hello" && Bool && Int == 5 {
@@ -418,6 +418,7 @@ func TestServiceMeta(t *testing.T) {
 	}
 
 }
+
 /*
 func TestUsersByNameAndAge_Registration(t *testing.T){
 	if ep,found:=restManager.endpoints[GET+":"+"serv/person/{FName:string}/{Age:int}"];!found{

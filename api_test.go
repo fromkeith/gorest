@@ -40,6 +40,25 @@ type User struct {
 	Weight    float32
 }
 
+func TestingAuthorizer(id string, role string) (bool, bool, SessionData) {
+	if idsInRealm == nil {
+		idsInRealm = make(map[string][]string, 0)
+		idsInRealm["12345"] = []string{"var-user", "string-user", "post-user"}
+		idsInRealm["fox"] = []string{"postInt-user"}
+	}
+
+	if roles, found := idsInRealm[id]; found {
+		for _, r := range roles {
+			if role == r {
+				return true, true, nil
+			}
+		}
+		return true, false, nil
+	}
+
+	return false, false, nil
+}
+
 //Tests:
 //	Path data types: string,int,bool,float32,float64 
 //	Returned(GET) data types: all basic ones above plus string keyed maps and structs.
@@ -84,23 +103,12 @@ type Complex struct {
 
 var idsInRealm map[string][]string
 
-func TestingAuthorizer(id string, role string) (bool, bool) {
-	if idsInRealm == nil {
-		idsInRealm = make(map[string][]string, 0)
-		idsInRealm["12345"] = []string{"var-user", "string-user", "post-user"}
-		idsInRealm["fox"] = []string{"postInt-user"}
-	}
+type TestSessiondata struct {
+	id string
+}
 
-	if roles, found := idsInRealm[id]; found {
-		for _, r := range roles {
-			if role == r {
-				return true, true
-			}
-		}
-		return true, false
-	}
-
-	return false, false
+func (sess *TestSessiondata) SessionId() string {
+	return sess.id
 }
 
 func (serv Service) Head(Bool bool, Int int) {
@@ -255,74 +263,97 @@ func TestInit(t *testing.T) {
 	//go ServeStandAlone(8787)
 
 	cook := new(http.Cookie)
-	cook.Name = "RestId"
+	cook.Name = "X-Xsrf-Cookie"
 	cook.Value = "12345"
-
-	rb, _ := NewRequestBuilder()
-
+	xrefStr := "?xsrft=12345"
+	rb, _ := NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/string/true/5" + xrefStr + "&name=Nameed&flow=6")
 	rb.AddCookie(cook)
 	//GET string
 	str := "Hell"
-	res, _ := rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?name=Nameed&flow=6")
+	res, _ := rb.Get(&str, 200)
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/Nameed6", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/strin?name=Nameed")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/strin" + xrefStr + "&name=Nameed")
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&str, 200)
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Yebo-Yes-Nameed", "Get string similar path", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?name=Nameed")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/string/true/5" + xrefStr + "&name=Nameed")
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&str, 200)
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/Nameed0", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?flow=6")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/string/true/5" + xrefStr + "&flow=6")
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&str, 200)
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/6", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?flow=")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/string/true/5" + xrefStr + "&flow=")
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&str, 200)
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/0", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/string/true/5?flow")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/string/true/5" + xrefStr + "&flow")
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&str, 200)
 	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
 	AssertEqual(str, "Hellotrue5/0", "Get string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/varstring/One/Two/Three")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/varstring/One/Two/Three" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&str, 200)
 	AssertEqual(res.StatusCode, 200, "Get var-args string ResponseCode", t)
 	AssertEqual(str, "StartOneTwoThreeEnd", "Get var-args string", t)
 
-	res, _ = rb.Get(&str, "http://localhost:8787"+MUX_ROOT+"serv/var/1/2/3/4/5/6/7/8")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/var/1/2/3/4/5/6/7/8" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&str, 200)
 	AssertEqual(res.StatusCode, 200, "Get var-args Int ResponseCode", t)
 	AssertEqual(str, "Start12345678End", "Get var-args Int", t)
 
 	//GET Int
 	inter := -2
-	res, _ = rb.Get(&inter, "http://localhost:8787"+MUX_ROOT+"serv/int/true/int/yes/2/for?name=Nameed&flow=6") //The query aurguments here just to be ignored
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/int/true/int/yes/2/for" + xrefStr + "&name=Nameed&flow=6")
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&inter, 200) //The query aurguments here just to be ignored
 	AssertEqual(res.StatusCode, 200, "Get int ResponseCode", t)
 	AssertEqual(inter, -3, "Get int", t)
 
 	//GET Bool
 	bl := true
-	res, _ = rb.Get(&bl, "http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/bool/false/2" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&bl, 200)
 	AssertEqual(res.StatusCode, 200, "Get int ResponseCode", t)
 	AssertEqual(bl, false, "Get Bool", t)
 
 	//GET Float
 	fl := 2.4
-	res, _ = rb.Get(&fl, "http://localhost:8787"+MUX_ROOT+"serv/float/false/2")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/float/false/2" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&fl, 200)
 	AssertEqual(res.StatusCode, 200, "Get Float ResponseCode", t)
 	AssertEqual(fl, 222.222, "Get Float", t)
 
 	//GET Map Int
 	mp := make(map[string]int)
-	res, _ = rb.Get(&mp, "http://localhost:8787"+MUX_ROOT+"serv/mapint/false/2")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/mapint/false/2" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&mp, 200)
 	AssertEqual(res.StatusCode, 200, "Get Float ResponseCode", t)
 	AssertEqual(mp["One"], 1, "Get Map Int", t)
 	AssertEqual(mp["Two"], 2, "Get Map Int", t)
 
 	//GET Map Int
 	mpu := make(map[string]User)
-	res, _ = rb.Get(&mpu, "http://localhost:8787"+MUX_ROOT+"serv/mapstruct/false/2")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/mapstruct/false/2" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&mpu, 200)
 	AssertEqual(res.StatusCode, 200, "Get Map struct ResponseCode", t)
 	AssertEqual(mpu["One"].Id, "1", "Get Map struct", t)
 	AssertEqual(mpu["Two"].Id, "2", "Get Map struct", t)
@@ -331,7 +362,9 @@ func TestInit(t *testing.T) {
 
 	//GET Array Struct
 	au := make([]User, 0)
-	res, _ = rb.Get(&au, "http://localhost:8787"+MUX_ROOT+"serv/arraystruct/Sandy/2")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/arraystruct/Sandy/2" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Get(&au, 200)
 	AssertEqual(res.StatusCode, 200, "Get Array struct ResponseCode", t)
 	if res.StatusCode == 200 {
 		AssertEqual(au[0].Id, "user1", "Get Array Struct", t)
@@ -340,75 +373,101 @@ func TestInit(t *testing.T) {
 
 	//POST 
 
-	res, _ = rb.Post("Hello", "http://localhost:8787"+MUX_ROOT+"serv/string/true/5")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/string/true/5" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Post("Hello")
 	AssertEqual(res.StatusCode, 200, "Post String", t)
 
 	//POST Int requires the postInt-user role, which only user fox has
-	res, _ = rb.Post(6, "http://localhost:8787"+MUX_ROOT+"serv/int/true/5")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/int/true/5" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Post(6)
 	AssertEqual(res.StatusCode, 403, "Post Integer wrong user", t)
 
-	rb2, _ := NewRequestBuilder()
 	cook2 := new(http.Cookie)
-	cook2.Name = "RestId"
+	cook2.Name = "X-Xsrf-Cookie"
 	cook2.Value = "fox"
 
+	xrefStr2 := "?xsrft=fox"
+
+	rb2, _ := NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/int/true/5" + xrefStr2)
 	rb2.AddCookie(cook2)
-	res, _ = rb2.Post(6, "http://localhost:8787"+MUX_ROOT+"serv/int/true/5")
+	res, _ = rb2.Post(6)
 	AssertEqual(res.StatusCode, 200, "Post Integer correct user", t)
 
 	//Go back to using userid: 12345
-	res, _ = rb.Post(false, "http://localhost:8787"+MUX_ROOT+"serv/bool/true/5")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/bool/true/5" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Post(false)
 	AssertEqual(res.StatusCode, 200, "Post Boolean", t)
-	res, _ = rb.Post(34.56788, "http://localhost:8787"+MUX_ROOT+"serv/float/true/5")
+
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/float/true/5" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Post(34.56788)
 	AssertEqual(res.StatusCode, 200, "Post Float", t)
 
 	//Post VarArgs
-	res, _ = rb.Post("hello", "http://localhost:8787"+MUX_ROOT+"serv/var/5/24567")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/var/5/24567" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Post("hello")
 	AssertEqual(res.StatusCode, 200, "Post Var args", t)
 
 	//POST Map Int
 	mi := make(map[string]int, 0)
 	mi["One"] = 111
 	mi["Two"] = 222
-	res, _ = rb.Post(mi, "http://localhost:8787"+MUX_ROOT+"serv/mapint/true/5")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/mapint/true/5" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Post(mi)
 	AssertEqual(res.StatusCode, 200, "Post Integer Map", t)
 
 	//POST Map Struct
 	mu := make(map[string]User, 0)
 	mu["One"] = User{"111", "David1", "Gueta1", 35, 123}
 	mu["Two"] = User{"222", "David2", "Gueta2", 35, 123}
-	res, _ = rb.Post(mu, "http://localhost:8787"+MUX_ROOT+"serv/mapstruct/true/5")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/mapstruct/true/5" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Post(mu)
 	AssertEqual(res.StatusCode, 200, "Post Struct Map", t)
 
 	//POST Array Struct
 	users := make([]User, 0)
 	users = append(users, User{"user1", "Joe", "Soap", 19, 89.7})
 	users = append(users, User{"user2", "Jose", "Soap2", 15, 89.7})
-	res, _ = rb.Post(users, "http://localhost:8787"+MUX_ROOT+"serv/arraystruct/true/5")
+
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/arraystruct/true/5" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Post(users)
 	AssertEqual(res.StatusCode, 200, "Post Struct Array", t)
 
 	//OPTIONS
 	strArr := make([]string, 0)
-	res, _ = rb.Options(&strArr, "http://localhost:8787"+MUX_ROOT+"serv/bool/false/2")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/bool/false/2" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Options(&strArr)
 	AssertEqual(res.StatusCode, 200, "Options ResponseCode", t)
 	AssertEqual(strArr[0], GET, "Options", t)
 	AssertEqual(strArr[1], HEAD, "Options", t)
 	AssertEqual(strArr[2], POST, "Options", t)
 
 	//HEAD
-	res, _ = rb.Head("http://localhost:8787" + MUX_ROOT + "serv/bool/false/2")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/bool/false/2" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Head()
 	AssertEqual(res.StatusCode, 200, "Head ResponseCode", t)
 	AssertEqual(res.Header.Get("ETag"), "12345", "Head Header ETag", t)
 	AssertEqual(strings.Trim(res.Header["Age"][0], " "), "1800", "Head Header Age", t)
 
 	//DELETE
-	res, _ = rb.Delete("http://localhost:8787" + MUX_ROOT + "serv/bool/false/2")
+	rb, _ = NewRequestBuilder("http://localhost:8787" + MUX_ROOT + "serv/bool/false/2" + xrefStr)
+	rb.AddCookie(cook)
+	res, _ = rb.Delete()
 	AssertEqual(res.StatusCode, 200, "Delete ResponseCode", t)
 
 }
 
 func TestServiceMeta(t *testing.T) {
-	if meta, found := restManager.serviceTypes["gorest.googlecode.com/hg/gorest/Service"]; !found {
+	if meta, found := restManager.serviceTypes["code.google.com/p/gorest/Service"]; !found {
 		t.Error("Service Not registered correctly")
 	} else {
 		AssertEqual(meta.consumesMime, "application/json", "Service consumesMime", t)

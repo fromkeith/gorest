@@ -28,25 +28,26 @@ package gorest
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"strconv"
 	"testing"
 )
 
 func TestInterfaceToBytes(t *testing.T) {
 
-	bytes, _ := interfaceToBytes(12345, "application/json")
+	bytes, _ := InterfaceToBytes(12345, "application/json")
 	AssertEqual(string(bytes), "12345", "Integer marshall", t)
 
-	bytes, _ = interfaceToBytes("Hello", "application/json")
+	bytes, _ = InterfaceToBytes("Hello", "application/json")
 	AssertEqual(string(bytes), "Hello", "String marshall", t)
 
-	bytes, _ = interfaceToBytes(true, "application/json")
+	bytes, _ = InterfaceToBytes(true, "application/json")
 	AssertEqual(string(bytes), "true", "Bool marshall", t)
 
-	bytes, _ = interfaceToBytes(36.6, "application/json")
+	bytes, _ = InterfaceToBytes(36.6, "application/json")
 	AssertEqual(string(bytes), "36.6", "Float marshall", t)
 
-	bytes, _ = interfaceToBytes(-37, "application/json")
+	bytes, _ = InterfaceToBytes(-37, "application/json")
 	AssertEqual(string(bytes), "-37", "Uint marshall", t)
 
 	u := new(User)
@@ -54,7 +55,7 @@ func TestInterfaceToBytes(t *testing.T) {
 	u.LastName = "Coperfield"
 	u.Age = 20
 
-	bytes, _ = interfaceToBytes(u, "application/json")
+	bytes, _ = InterfaceToBytes(u, "application/json")
 	AssertEqual(string(bytes), `{"Id":"","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0}`, "Struct marshall", t)
 
 	userArr := make([]User, 0)
@@ -62,14 +63,14 @@ func TestInterfaceToBytes(t *testing.T) {
 	u2.Age = 30
 	userArr = append(userArr, *u)
 	userArr = append(userArr, u2)
-	bytes, _ = interfaceToBytes(userArr, "application/json")
+	bytes, _ = InterfaceToBytes(userArr, "application/json")
 	AssertEqual(string(bytes), `[{"Id":"","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0},{"Id":"","FirstName":"David","LastName":"Coperfield","Age":30,"Weight":0}]`, "Array marshall", t)
 
 	userMap := make(map[string]User, 0)
 	userMap["One"] = *u
 	userMap["Two"] = u2
 
-	bytes, _ = interfaceToBytes(userMap, "application/json")
+	bytes, _ = InterfaceToBytes(userMap, "application/json")
 	AssertEqual(string(bytes), `{"One":{"Id":"","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0},"Two":{"Id":"","FirstName":"David","LastName":"Coperfield","Age":30,"Weight":0}}`, "Map marshall", t)
 
 }
@@ -82,23 +83,23 @@ func TestBytesToI(t *testing.T) {
 	fl := 34.5
 
 	byt := bytes.NewBufferString("36")
-	bytesToI(byt, &i, "")
+	BytesToInterface(byt, &i, "")
 	AssertEqual(i, 36, "Integer unmarshall", t)
 
 	byt = bytes.NewBufferString("false")
-	bytesToI(byt, &bully, "")
+	BytesToInterface(byt, &bully, "")
 	AssertEqual(bully, false, "Bool unmarshall", t)
 
 	byt = bytes.NewBufferString("-12")
-	bytesToI(byt, &ui, "")
+	BytesToInterface(byt, &ui, "")
 	AssertEqual(ui, -12, "UInt unmarshall", t)
 
 	byt = bytes.NewBufferString("36.7787")
-	bytesToI(byt, &fl, "")
+	BytesToInterface(byt, &fl, "")
 	AssertEqual(fl, 36.7787, "Float unmarshall", t)
 
 	byt = bytes.NewBufferString("Hello")
-	bytesToI(byt, &str, "")
+	BytesToInterface(byt, &str, "")
 	AssertEqual(str, "Hello", "String unmarshall", t)
 
 	u := new(User)
@@ -112,8 +113,8 @@ func TestBytesToI(t *testing.T) {
 	byt = bytes.NewBuffer(by)
 	//println("User",string(byt.Bytes()))
 	u2 := new(User)
-	if err := bytesToI(byt, u2, "application/json"); err != nil {
-		t.Error("Error", err.String())
+	if err := BytesToInterface(byt, u2, "application/json"); err != nil {
+		t.Error("Error", err.Error())
 	}
 	AssertEqual(u2.Age, 20, "Struct unmarshall", t)
 	AssertEqual(u2.FirstName, "David", "Struct unmarshall", t)
@@ -124,8 +125,8 @@ func TestBytesToI(t *testing.T) {
 	byt = bytes.NewBufferString(`[{"Id":"1","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0},{"Id":"2","FirstName":"David","LastName":"Coperfield","Age":20,"Weight":0}]`)
 	userArr := make([]User, 0)
 
-	if err := bytesToI(byt, &userArr, "application/json"); err != nil {
-		t.Error("Error", err.String())
+	if err := BytesToInterface(byt, &userArr, "application/json"); err != nil {
+		t.Error("Error", err.Error())
 	} else {
 		for pos, au := range userArr {
 			//println("User at pos:", pos," Data: ",au.FirstName,au.LastName,au.Id)
@@ -138,8 +139,8 @@ func TestBytesToI(t *testing.T) {
 	byt = bytes.NewBufferString(`{"One":{"Id":"One","FirstName":"Siya","LastName":"Dlamini","Age":29,"Weight":62},"Two":{"Id":"Two","FirstName":"Siya","LastName":"Dlamini","Age":29,"Weight":62}}`)
 	userMap := make(map[string]User, 0)
 
-	if err := bytesToI(byt, &userMap, "application/json"); err != nil {
-		t.Error("Error", err.String())
+	if err := BytesToInterface(byt, &userMap, "application/json"); err != nil {
+		t.Error("Error", err.Error())
 	} else {
 		AssertEqual(userMap["One"].FirstName, "Siya", "Map Unmarshal", t)
 		AssertEqual(userMap["One"].LastName, "Dlamini", "Map Unmarshal", t)
@@ -153,5 +154,7 @@ func TestBytesToI(t *testing.T) {
 func AssertEqual(given interface{}, expecting interface{}, compared string, t *testing.T) {
 	if expecting != given {
 		t.Error("Fail Assert:", compared, " Expecting:", expecting, "; but is:", given)
+	} else {
+		log.Println("Pass Assert:", compared)
 	}
 }

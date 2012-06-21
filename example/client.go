@@ -2,7 +2,6 @@
 package main
 
 import (
-	"gorest.googlecode.com/hg/gorest"
 	"time"
 )
 
@@ -23,7 +22,7 @@ func StartClient() {
 	
 	endTime:= time.Nanoseconds()
 	
-	println("Process took: ", seconds := float64(endTime-startSecs)/1e9)
+	//println("Process took: ", seconds := float64(endTime-startSecs)/1e9)
 	
 	
 	

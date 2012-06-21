@@ -26,11 +26,11 @@
 package gorest
 
 import (
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
-	"net/url"
-	"log"
 )
 
 type GoRestService interface {
@@ -107,10 +107,62 @@ func init() {
 
 }
 
+//Registeres a service on the rootpath.
+//See example below:
+//
+//	package main
+//	import (
+// 	   "code.google.com/p/gorest"
+//	        "http"
+//	)
+//	func main() {
+//	    gorest.RegisterService(new(HelloService)) //Register our service
+//	    http.Handle("/",gorest.Handle())    
+// 	   http.ListenAndServe(":8787",nil)
+//	}
+//
+//	//Service Definition
+//	type HelloService struct {
+//	    gorest.RestService `root:"/tutorial/"`
+//	    helloWorld  gorest.EndPoint `method:"GET" path:"/hello-world/" output:"string"`
+//	    sayHello    gorest.EndPoint `method:"GET" path:"/hello/{name:string}" output:"string"`
+//	}
+//	func(serv HelloService) HelloWorld() string{
+// 	   return "Hello World"
+//	}
+//	func(serv HelloService) SayHello(name string) string{
+//	    return "Hello " + name
+//	}
 func RegisterService(h interface{}) {
 	RegisterServiceOnPath("", h)
 }
 
+//Registeres a service under the specified path.
+//See example below:
+//
+//	package main
+//	import (
+//	    "code.google.com/p/gorest"
+//	        "http"
+//	)
+//	func main() {
+//	    gorest.RegisterServiceOnPath("/rest/",new(HelloService)) //Register our service
+//	    http.Handle("/",gorest.Handle())    
+//	    http.ListenAndServe(":8787",nil)
+//	}
+//
+//	//Service Definition
+//	type HelloService struct {
+//	    gorest.RestService `root:"/tutorial/"`
+//	    helloWorld  gorest.EndPoint `method:"GET" path:"/hello-world/" output:"string"`
+//	    sayHello    gorest.EndPoint `method:"GET" path:"/hello/{name:string}" output:"string"`
+//	}
+//	func(serv HelloService) HelloWorld() string{
+//	    return "Hello World"
+//	}
+//	func(serv HelloService) SayHello(name string) string{
+//	    return "Hello " + name
+//	}
 func RegisterServiceOnPath(root string, h interface{}) {
 	//We only initialise the handler management once we know gorest is being used to hanlde request as well, not just client.
 	if !handlerInitialised {
@@ -130,22 +182,23 @@ func RegisterServiceOnPath(root string, h interface{}) {
 	registerService(root, h)
 }
 
+//ServeHTTP dispatches the request to the handler whose pattern most closely matches the request URL.
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	url_, err := url.QueryUnescape(r.URL.RequestURI())
 	if err != nil {
-		log.Println("Could not serve page: ", r.URL.RequestURI(),"Error:",err)
+		log.Println("Could not serve page: ", r.URL.RequestURI(), "Error:", err)
 		w.WriteHeader(400)
 		w.Write([]byte("Client sent bad request."))
 		return
 	}
-	if ep, args, queryArgs,xsrft, found := getEndPointByUrl(r.Method, url_); found {
+	if ep, args, queryArgs, xsrft, found := getEndPointByUrl(r.Method, url_); found {
 
 		ctx := new(Context)
 		ctx.writer = w
 		ctx.request = r
 		ctx.args = args
 		ctx.queryArgs = queryArgs
-		ctx.xsrftoken =xsrft
+		ctx.xsrftoken = xsrft
 
 		data, state := prepareServe(ctx, ep)
 
@@ -185,7 +238,7 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 		} else {
-			log.Println("Problem with request. Error:",state.httpCode,state.reason, "; Request: ",r.URL.RequestURI())
+			log.Println("Problem with request. Error:", state.httpCode, state.reason, "; Request: ", r.URL.RequestURI())
 			w.WriteHeader(state.httpCode)
 			w.Write([]byte(state.reason))
 		}
@@ -216,11 +269,14 @@ func (man *manager) addEndPoint(ep endPointStruct) {
 	man.endpoints[ep.requestMethod+":"+ep.signiture] = ep
 }
 
+//Registeres the function to be used for handling all requests directed to gorest.
 func HandleFunc(w http.ResponseWriter, r *http.Request) {
-	log.Println("Serving URL : ",r.URL.RequestURI())
+	log.Println("Serving URL : ", r.URL.RequestURI())
 	restManager.ServeHTTP(w, r)
 }
 
+//Runs the default "net/http" DefaultServeMux on the specified port. 
+//All requests are handled using gorest.HandleFunc()
 func ServeStandAlone(port int) {
 	http.HandleFunc("/", HandleFunc)
 	http.ListenAndServe(":"+strconv.Itoa(port), nil)

@@ -32,7 +32,13 @@ import (
 	"strconv"
 )
 
-
+//Marshals the data in interface i into a byte slice, using the Marhaller/Unmarshaller specified in mime.
+//The Marhaller/Unmarshaller must have been registered before using gorest.RegisterMarshaller
+func Marshal(i interface{}, mime string) ([]byte, error) {
+	return InterfaceToBytes(i, mime)
+}
+//Marshals the data in interface i into a byte slice, using the Marhaller/Unmarshaller specified in mime.
+//The Marhaller/Unmarshaller must have been registered before using gorest.RegisterMarshaller
 func InterfaceToBytes(i interface{}, mime string) ([]byte, error) {
 	v := reflect.ValueOf(i)
 	if v.Kind() == reflect.Ptr {
@@ -60,6 +66,12 @@ func InterfaceToBytes(i interface{}, mime string) ([]byte, error) {
 		return nil, errors.New("Type " + v.Type().Name() + " is not handled by GoRest.")
 	}
 	return nil, nil
+}
+
+//Unmarshals the data in buf into interface i, using the Marhaller/Unmarshaller specified in mime.
+//The Marhaller/Unmarshaller must have been registered before using gorest.RegisterMarshaller
+func Unmarshal(buf *bytes.Buffer, i interface{}, mime string) error {
+	return BytesToInterface(buf, i, mime)
 }
 func BytesToInterface(buf *bytes.Buffer, i interface{}, mime string) error {
 	v := reflect.ValueOf(i)

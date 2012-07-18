@@ -186,7 +186,7 @@ func RegisterServiceOnPath(root string, h interface{}) {
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	url_, err := url.QueryUnescape(r.URL.RequestURI())
 	if err != nil {
-		log.Println("Could not serve page: ", r.URL.RequestURI(), "Error:", err)
+		log.Println("Could not serve page: ", r.Method, r.URL.RequestURI(), "Error:", err)
 		w.WriteHeader(400)
 		w.Write([]byte("Client sent bad request."))
 		return
@@ -238,13 +238,14 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 		} else {
-			log.Println("Problem with request. Error:", state.httpCode, state.reason, "; Request: ", r.URL.RequestURI())
+			log.Println("Problem with request. Error:", r.Method, state.httpCode, state.reason, "; Request: ", r.URL.RequestURI())
 			w.WriteHeader(state.httpCode)
 			w.Write([]byte(state.reason))
 		}
 
 	} else {
-		log.Println("Could not serve page: ", url_)
+		log.Println("Could not serve page, path not found: ", r.Method, url_)
+		//		println("Could not serve page, path not found: ", r.Method, url_)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("The resource in the requested path could not be found."))
 	}
@@ -271,7 +272,7 @@ func (man *manager) addEndPoint(ep endPointStruct) {
 
 //Registeres the function to be used for handling all requests directed to gorest.
 func HandleFunc(w http.ResponseWriter, r *http.Request) {
-	log.Println("Serving URL : ", r.URL.RequestURI())
+	log.Println("Serving URL : ", r.Method, r.URL.RequestURI())
 	restManager.ServeHTTP(w, r)
 }
 

@@ -41,7 +41,7 @@ type param struct {
 	typeName       string
 }
 
-var ALLOWED_PAR_TYPES = []string{"string", "int", "bool", "float32", "float64"}
+var aLLOWED_PAR_TYPES = []string{"string", "int", "bool", "float32", "float64"}
 
 func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, name string) serviceMetaData {
 	md := new(serviceMetaData)
@@ -267,7 +267,7 @@ func getVarTypePair(part string, sign string) (parName string, typeName string) 
 }
 
 func isAllowedParamType(typeName string) bool {
-	for _, s := range ALLOWED_PAR_TYPES {
+	for _, s := range aLLOWED_PAR_TYPES {
 		if s == strings.ToLower(typeName) {
 			return true
 		}
@@ -296,11 +296,11 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 
 	var ep *endPointStruct
 	for _, loopEp := range _manager().endpoints {
-		//println("Path part: ", pathPart, loopEp.root, loopEp.signitureLen, totalParts)
-		if loopEp.isVariableLength && (strings.Index(pathPart, loopEp.root+"/") == 0) && loopEp.requestMethod == method {
+		//		println(method, ":", loopEp.requestMethod, pathPart, ":", loopEp.root, totalParts, ":", loopEp.signitureLen, "Variable?", loopEp.isVariableLength)
+		if loopEp.isVariableLength && (strings.Index(pathPart+"/", loopEp.root+"/") == 0) && loopEp.requestMethod == method {
 			ep = &loopEp
 			varsPart := strings.Trim(pathPart[len(loopEp.root):], "/")
-			//println("::::::::::::::::Root",pathPart,">>>>>>>Vars",varsPart)
+			//			println("::::::::::::::::Root", pathPart, ">>>>>>>Vars", varsPart)
 			for upos, str1 := range strings.Split(varsPart, "/") {
 				pathArgs[string(upos)] = strings.Trim(str1, " ")
 			}

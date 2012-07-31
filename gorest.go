@@ -29,6 +29,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"strings"
 )
@@ -184,7 +185,18 @@ func RegisterServiceOnPath(root string, h interface{}) {
 
 //ServeHTTP dispatches the request to the handler whose pattern most closely matches the request URL.
 func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 	url_, err := url.QueryUnescape(r.URL.RequestURI())
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Println("Internal Server Error: Could not serve page: ", r.Method, url_)
+			log.Println(rec)
+			log.Printf("%s", debug.Stack())
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}()
+
 	if err != nil {
 		log.Println("Could not serve page: ", r.Method, r.URL.RequestURI(), "Error:", err)
 		w.WriteHeader(400)

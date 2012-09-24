@@ -41,7 +41,7 @@ type param struct {
 	typeName       string
 }
 
-var aLLOWED_PAR_TYPES = []string{"string", "int", "bool", "float32", "float64"}
+var aLLOWED_PAR_TYPES = []string{"string", "int", "int32", "int64", "bool", "float32", "float64"}
 
 func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, name string) serviceMetaData {
 	md := new(serviceMetaData)

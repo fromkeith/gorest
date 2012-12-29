@@ -28,7 +28,6 @@ package gorest
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"strconv"
 	"testing"
 )
@@ -149,12 +148,4 @@ func TestBytesToI(t *testing.T) {
 		AssertEqual(userMap["Two"].Age, 29, "Map Unmarshal", t)
 	}
 
-}
-
-func AssertEqual(given interface{}, expecting interface{}, compared string, t *testing.T) {
-	if expecting != given {
-		t.Error("Fail Assert:", compared, " Expecting:", expecting, "; but is:", given)
-	} else {
-		log.Println("Pass Assert:", compared)
-	}
 }

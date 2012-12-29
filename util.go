@@ -37,6 +37,7 @@ import (
 func Marshal(i interface{}, mime string) ([]byte, error) {
 	return InterfaceToBytes(i, mime)
 }
+
 //Marshals the data in interface i into a byte slice, using the Marhaller/Unmarshaller specified in mime.
 //The Marhaller/Unmarshaller must have been registered before using gorest.RegisterMarshaller
 func InterfaceToBytes(i interface{}, mime string) ([]byte, error) {

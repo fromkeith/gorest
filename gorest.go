@@ -100,7 +100,6 @@ func newManager() *manager {
 	man := new(manager)
 	man.serviceTypes = make(map[string]serviceMetaData, 0)
 	man.endpoints = make(map[string]endPointStruct, 0)
-
 	return man
 }
 func init() {
@@ -203,6 +202,7 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Client sent bad request."))
 		return
 	}
+
 	if ep, args, queryArgs, xsrft, found := getEndPointByUrl(r.Method, url_); found {
 
 		ctx := new(Context)
@@ -285,6 +285,14 @@ func (man *manager) addEndPoint(ep endPointStruct) {
 //Registeres the function to be used for handling all requests directed to gorest.
 func HandleFunc(w http.ResponseWriter, r *http.Request) {
 	log.Println("Serving URL : ", r.Method, r.URL.RequestURI())
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Println("Internal Server Error: Could not serve page: ", r.Method, r.RequestURI)
+			log.Println(rec)
+			log.Printf("%s", debug.Stack())
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}()
 	restManager.ServeHTTP(w, r)
 }
 

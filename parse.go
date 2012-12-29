@@ -59,7 +59,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 			log.Panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
 		}
 	} else {
-		md.consumesMime = Application_Json //Default	
+		md.consumesMime = Application_Json //Default    
 	}
 	if tag := tags.Get("produces"); tag != "" {
 		md.producesMime = tag
@@ -67,7 +67,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 			log.Panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
 		}
 	} else {
-		md.consumesMime = Application_Json //Default	
+		md.consumesMime = Application_Json //Default    
 	}
 
 	if tag := tags.Get("realm"); tag != "" {
@@ -237,8 +237,8 @@ func parseParams(e *endPointStruct) {
 	}
 
 	for key, ep := range _manager().endpoints {
-		if ep.root == e.root && ep.signitureLen == e.signitureLen && ep.requestMethod == e.requestMethod {
-			log.Panic("Can not register two endpoints with same request-method(" + ep.requestMethod + "), same root and same amount of parameters: " + e.signiture + " VS " + ep.signiture)
+		if ep.root == e.root && ep.signitureLen == e.signitureLen && reflect.DeepEqual(ep.nonParamPathPart, e.nonParamPathPart) && ep.requestMethod == e.requestMethod {
+			log.Panic("Can not register two endpoints with same request-method(" + ep.requestMethod + ") and same signature: " + e.signiture + " VS " + ep.signiture)
 		}
 		if ep.requestMethod == e.requestMethod && pathPart == key {
 			log.Panic("Endpoint already registered: " + pathPart)
@@ -295,12 +295,14 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 	queryArgs := make(map[string]string, 0)
 
 	var ep *endPointStruct
+
+EPLOOP:
 	for _, loopEp := range _manager().endpoints {
-		//		println(method, ":", loopEp.requestMethod, pathPart, ":", loopEp.root, totalParts, ":", loopEp.signitureLen, "Variable?", loopEp.isVariableLength)
+		//              println(method, ":", loopEp.requestMethod, pathPart, ":", loopEp.root, totalParts, ":", loopEp.signitureLen, "Variable?", loopEp.isVariableLength)
 		if loopEp.isVariableLength && (strings.Index(pathPart+"/", loopEp.root+"/") == 0) && loopEp.requestMethod == method {
 			ep = &loopEp
 			varsPart := strings.Trim(pathPart[len(loopEp.root):], "/")
-			//			println("::::::::::::::::Root", pathPart, ">>>>>>>Vars", varsPart)
+			//                      println("::::::::::::::::Root", pathPart, ">>>>>>>Vars", varsPart)
 			for upos, str1 := range strings.Split(varsPart, "/") {
 				pathArgs[string(upos)] = strings.Trim(str1, " ")
 			}
@@ -312,8 +314,9 @@ func getEndPointByUrl(method string, url string) (endPointStruct, map[string]str
 				for upos, str1 := range strings.Split(pathPart, "/") {
 					if upos == pos {
 						if name != str1 {
-							log.Println("Not found:", pathPart)
-							return *epRet, pathArgs, queryArgs, "", false //Path not found
+							//Even though the beginning of the path matched, some other part didn't, keep looking.
+							ep = nil
+							continue EPLOOP
 						}
 						break
 					}

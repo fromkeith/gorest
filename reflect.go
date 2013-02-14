@@ -25,28 +25,24 @@
 
 package gorest
 
-
 import (
+	"bytes"
+	"io"
+	"log"
+	"net/http"
 	"reflect"
 	"strings"
-	"log"
-	"bytes"
-	"net/http"
-	"io"
 )
-
 
 const (
 	ERROR_INVALID_INTERFACE = "RegisterService(interface{}) takes a pointer to a struct that inherits from type RestService. Example usage: gorest.RegisterService(new(ServiceOne)) "
 )
 
-
 //Bootstrap functions below
 //------------------------------------------------------------------------------------------
 
-
 //Takes a value of a struct representing a service.
-func registerService(root string,h interface{}) {
+func registerService(root string, h interface{}) {
 
 	if _, ok := h.(GoRestService); !ok {
 		panic(ERROR_INVALID_INTERFACE)
@@ -62,8 +58,8 @@ func registerService(root string,h interface{}) {
 
 	if t.Kind() == reflect.Struct {
 		if field, found := t.FieldByName("RestService"); found {
-			tag := field.Tag
-			meta := prepServiceMetaData(root,tag, h,t.Name())
+			temp := strings.Join(strings.Fields(string(field.Tag)), " ")
+			meta := prepServiceMetaData(root, reflect.StructTag(temp), h, t.Name())
 			tFullName := _manager().addType(t.PkgPath()+"/"+t.Name(), meta)
 			for i := 0; i < t.NumField(); i++ {
 				f := t.Field(i)
@@ -76,12 +72,11 @@ func registerService(root string,h interface{}) {
 	panic(ERROR_INVALID_INTERFACE)
 }
 
-
 func mapFieldsToMethods(t reflect.Type, f reflect.StructField, typeFullName string, serviceRoot string) {
 
 	if f.Name != "RestService" && f.Type.Name() == "EndPoint" { //TODO: Proper type checking, not by name
-
-		ep := makeEndPointStruct(f.Tag, serviceRoot)
+		temp := strings.Join(strings.Fields(string(f.Tag)), " ")
+		ep := makeEndPointStruct(reflect.StructTag(temp), serviceRoot)
 		ep.parentTypeName = typeFullName
 		ep.name = f.Name
 
@@ -131,7 +126,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 			numInputIgnore = 1 //The first param is the default service struct
 			numOut = 1
 		}
-	case DELETE,HEAD,OPTIONS :
+	case DELETE, HEAD, OPTIONS:
 		{
 			numInputIgnore = 1 //The first param is the default service struct
 			numOut = 0
@@ -164,7 +159,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 				}
 			}
 
-			if !typeNamesEqual(methVal,ep.postdataType) {
+			if !typeNamesEqual(methVal, ep.postdataType) {
 				cool = false
 				return
 			}
@@ -172,7 +167,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 		//Check the rest of input path param types
 		i := numInputIgnore
 		if ep.isVariableLength {
-			if methType.NumIn() != numInputIgnore + 1 + len(ep.queryParams) {
+			if methType.NumIn() != numInputIgnore+1+len(ep.queryParams) {
 				cool = false
 			}
 			cool = false
@@ -184,7 +179,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 
 		} else {
 			for ; i < methType.NumIn() && (i-numInputIgnore < ep.paramLen); i++ {
-				if !typeNamesEqual(methType.In(i),ep.params[i-numInputIgnore].typeName) {
+				if !typeNamesEqual(methType.In(i), ep.params[i-numInputIgnore].typeName) {
 					cool = false
 					break
 				}
@@ -219,7 +214,7 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 				}
 			}
 
-			if !typeNamesEqual(methVal,ep.outputType) {
+			if !typeNamesEqual(methVal, ep.outputType) {
 				cool = false
 			}
 		}
@@ -228,11 +223,11 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 	return
 }
 
-func typeNamesEqual(methVal reflect.Type,name2 string) bool{
-	if strings.Index(name2,".") ==-1{
+func typeNamesEqual(methVal reflect.Type, name2 string) bool {
+	if strings.Index(name2, ".") == -1 {
 		return methVal.Name() == name2
 	}
-	fullName:= strings.Replace(methVal.PkgPath(),"/",".",-1) +"."+ methVal.Name()
+	fullName := strings.Replace(methVal.PkgPath(), "/", ".", -1) + "." + methVal.Name()
 	return fullName == name2
 }
 
@@ -279,27 +274,24 @@ func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f refl
 	return "No matching Method found for EndPoint:[" + f.Name + "],type:[" + ep.requestMethod + "] . Expecting: #func(serv " + t.Name() + ") " + methodName + "(" + str + ")" + suffix
 }
 
-
 //Runtime functions below:
 //-----------------------------------------------------------------------------------------------------------------
 
-
 func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 	servMeta := _manager().getType(ep.parentTypeName)
-	
-	
+
 	//Check Authorization
-	
-	if servMeta.realm != ""{
-		if context.xsrftoken != ""{
-			inRealm, inRole,sess:= GetAuthorizer(servMeta.realm)(context.xsrftoken,ep.role)
+
+	if servMeta.realm != "" {
+		if context.xsrftoken != "" {
+			inRealm, inRole, sess := GetAuthorizer(servMeta.realm)(context.xsrftoken, ep.role)
 			context.relSessionData = sess
-			if ep.role !=""{
-				if inRealm && inRole{
+			if ep.role != "" {
+				if inRealm && inRole {
 					goto Run
 				}
-			}else{
-				if inRealm{
+			} else {
+				if inRealm {
 					goto Run
 				}
 			}
@@ -307,9 +299,9 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 		}
 		return nil, restStatus{403, "Request denied, please ensure correct authentication and authorization."}
 	}
-	
-	Run:
-	
+
+Run:
+
 	servInterface := servMeta.template
 	servVal := reflect.ValueOf(servInterface).Elem()
 
@@ -337,25 +329,25 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 		}
 	}
 
-	if len(context.args) == ep.paramLen || (ep.isVariableLength && ep.paramLen==1){
+	if len(context.args) == ep.paramLen || (ep.isVariableLength && ep.paramLen == 1) {
 		startIndex := 1
 		if ep.requestMethod == POST || ep.requestMethod == PUT {
 			startIndex = 2
 		}
-		
-		if ep.isVariableLength{
-			varSliceArgs := reflect.New(targetMethod.Type.In(startIndex)).Elem() 
-			for ij:=0; ij < len(context.args);ij++{
-				dat:= context.args[string(ij)]
+
+		if ep.isVariableLength {
+			varSliceArgs := reflect.New(targetMethod.Type.In(startIndex)).Elem()
+			for ij := 0; ij < len(context.args); ij++ {
+				dat := context.args[string(ij)]
 
 				if v, state := makeArg(dat, targetMethod.Type.In(startIndex).Elem(), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
-					varSliceArgs = reflect.Append(varSliceArgs,v)
-				}else {
+					varSliceArgs = reflect.Append(varSliceArgs, v)
+				} else {
 					return nil, state
 				}
 			}
 			arrArgs = append(arrArgs, varSliceArgs)
-		}else{
+		} else {
 			//Now add the rest of the PATH arguments to the argument list and then call the method
 			// GET and DELETE will only need these arguments, not the "postdata" one in their method calls
 			for _, par := range ep.params {
@@ -363,7 +355,7 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 				if str, found := context.args[par.name]; found {
 					dat = str
 				}
-	
+
 				if v, state := makeArg(dat, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
 					arrArgs = append(arrArgs, v)
 				} else {
@@ -371,10 +363,9 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 				}
 				startIndex++
 			}
-			
+
 		}
 
-		
 		//Query arguments are not compulsory on query, so the caller may ommit them, in which case we send a zero value f its type to the method. 
 		//Also they may be sent through in any order.
 		for _, par := range ep.queryParams {
@@ -394,12 +385,11 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 
 		//Now call the actual method with the data
 		var ret []reflect.Value
-		if ep.isVariableLength{
+		if ep.isVariableLength {
 			ret = servVal.Method(ep.methodNumberInParent).CallSlice(arrArgs)
-		}else{
+		} else {
 			ret = servVal.Method(ep.methodNumberInParent).Call(arrArgs)
 		}
-		
 
 		if len(ret) == 1 { //This is when we have just called a GET
 			//At this stage we should be ready to write the response to client
@@ -407,7 +397,7 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 				return bytarr, restStatus{http.StatusOK, ""}
 			} else {
 				//This is an internal error with the registered marshaller not being able to marshal internal structs
-				return nil, restStatus{http.StatusInternalServerError, "Internal server error. Could not Marshal/UnMarshal data: "+err.Error()}
+				return nil, restStatus{http.StatusInternalServerError, "Internal server error. Could not Marshal/UnMarshal data: " + err.Error()}
 			}
 		} else {
 
@@ -434,7 +424,7 @@ func makeArg(data string, template reflect.Type, mime string) (reflect.Value, re
 	err := BytesToInterface(buf, i, mime)
 
 	if err != nil {
-		return reflect.ValueOf(nil), restStatus{http.StatusBadRequest, "Error Unmarshalling data using " + mime + ". Client sent incompetible data format in entity. ("+ err.Error()+")"}
+		return reflect.ValueOf(nil), restStatus{http.StatusBadRequest, "Error Unmarshalling data using " + mime + ". Client sent incompetible data format in entity. (" + err.Error() + ")"}
 	}
 	return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, ""}
 }

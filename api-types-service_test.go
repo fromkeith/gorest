@@ -53,14 +53,26 @@ type TypesService struct {
 	getMapStruct         EndPoint `method:"GET" path:"/mapstruct/{Bool:bool}/{Int:int}" output:"map[string]User"`
 	getArrayStruct       EndPoint `method:"GET" path:"/arraystruct/{FName:string}/{Age:int}" output:"[]User"`
 
-	postVarArgs     EndPoint `method:"POST" path:"/var/{...:int}" postdata:"string"`
-	postString      EndPoint `method:"POST" path:"/string/{Bool:bool}/{Int:int}" postdata:"string" role:"post-user"`
-	postInteger     EndPoint `method:"POST" path:"/int/{Bool:bool}/{Int:int}" postdata:"int" role:"postInt-user"`
-	postBool        EndPoint `method:"POST" path:"/bool/{Bool:bool}/{Int:int}" postdata:"bool" `
-	postFloat       EndPoint `method:"POST" path:"/float/{Bool:bool}/{Int:int}" postdata:"float64" `
-	postMapInt      EndPoint `method:"POST" path:"/mapint/{Bool:bool}/{Int:int}" postdata:"map[string]int" `
-	postMapStruct   EndPoint `method:"POST" path:"/mapstruct/{Bool:bool}/{Int:int}" postdata:"map[string]User" `
-	postArrayStruct EndPoint `method:"POST" path:"/arraystruct/{Bool:bool}/{Int:int}" postdata:"[]User"`
+	postVarArgs EndPoint `method:"POST" path:"/var/{...:int}" postdata:"string"`
+	postString  EndPoint `method:"POST" path:"/string/{Bool:bool}/{Int:int}" postdata:"string" role:"post-user"`
+	postInteger EndPoint `method:"POST" path:"/int/{Bool:bool}/{Int:int}" postdata:"int" role:"postInt-user"`
+	postBool    EndPoint `method:"POST" path:"/bool/{Bool:bool}/{Int:int}" postdata:"bool" `
+	postFloat   EndPoint `method:"POST" path:"/float/{Bool:bool}/{Int:int}" postdata:"float64" `
+
+	postMapInt EndPoint `
+						method:"POST" 
+						path:"/mapint/{Bool:bool}/{Int:int}" 
+						postdata:"map[string]int" `
+
+	postMapStruct EndPoint `
+						method:"POST" 
+						path:"/mapstruct/{Bool:bool}/{Int:int}" 
+						postdata:"map[string]User" `
+
+	postArrayStruct EndPoint `
+						method:"POST" 
+						path:"/arraystruct/{Bool:bool}/{Int:int}" 
+						postdata:"[]User"`
 
 	head     EndPoint `method:"HEAD" path:"/bool/{Bool:bool}/{Int:int}"`
 	options  EndPoint `method:"OPTIONS" path:"/bool/{Bool:bool}/{Int:int}"`

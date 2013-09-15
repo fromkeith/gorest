@@ -58,8 +58,9 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 		if GetMarshallerByMime(tag) == nil {
 			log.Panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
 		}
+
 	} else {
-		md.consumesMime = Application_Json //Default    
+		md.consumesMime = Application_Json //Default
 	}
 	if tag := tags.Get("produces"); tag != "" {
 		md.producesMime = tag
@@ -67,7 +68,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 			log.Panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
 		}
 	} else {
-		md.consumesMime = Application_Json //Default    
+		md.producesMime = Application_Json //Default
 	}
 
 	if tag := tags.Get("realm"); tag != "" {

@@ -25,7 +25,10 @@
 
 package gorest
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"encoding/xml"
+)
 
 //A Marshaller represents the two functions used to marshal/unmarshal interfaces back and forth.
 type Marshaller struct {
@@ -69,3 +72,13 @@ func jsonUnMarshal(data []byte, v interface{}) error {
 }
 
 //XML
+func NewXMLMarshaller() *Marshaller {
+	m := Marshaller{xmlMarshal, xmlUnMarshal}
+	return &m
+}
+func xmlMarshal(v interface{}) ([]byte, error) {
+	return xml.Marshal(v)
+}
+func xmlUnMarshal(data []byte, v interface{}) error {
+	return xml.Unmarshal(data, v)
+}

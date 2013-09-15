@@ -117,7 +117,7 @@ func init() {
 //	)
 //	func main() {
 //	    gorest.RegisterService(new(HelloService)) //Register our service
-//	    http.Handle("/",gorest.Handle())    
+//	    http.Handle("/",gorest.Handle())
 // 	   http.ListenAndServe(":8787",nil)
 //	}
 //
@@ -147,7 +147,7 @@ func RegisterService(h interface{}) {
 //	)
 //	func main() {
 //	    gorest.RegisterServiceOnPath("/rest/",new(HelloService)) //Register our service
-//	    http.Handle("/",gorest.Handle())    
+//	    http.Handle("/",gorest.Handle())
 //	    http.ListenAndServe(":8787",nil)
 //	}
 //
@@ -296,7 +296,7 @@ func HandleFunc(w http.ResponseWriter, r *http.Request) {
 	restManager.ServeHTTP(w, r)
 }
 
-//Runs the default "net/http" DefaultServeMux on the specified port. 
+//Runs the default "net/http" DefaultServeMux on the specified port.
 //All requests are handled using gorest.HandleFunc()
 func ServeStandAlone(port int) {
 	http.HandleFunc("/", HandleFunc)

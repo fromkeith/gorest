@@ -66,7 +66,7 @@ func InterfaceToBytes(i interface{}, mime string) ([]byte, error) {
 	default:
 		return nil, errors.New("Type " + v.Type().Name() + " is not handled by GoRest.")
 	}
-	return nil, nil
+
 }
 
 //Unmarshals the data in buf into interface i, using the Marhaller/Unmarshaller specified in mime.

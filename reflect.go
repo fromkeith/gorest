@@ -302,8 +302,8 @@ func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
 
 Run:
 
-	servInterface := servMeta.template
-	servVal := reflect.ValueOf(servInterface).Elem()
+	t := reflect.TypeOf(servMeta.template).Elem() //Get the type first, and it's pointer so Elem(), we created service with new (why??)
+	servVal := reflect.New(t).Elem() //Key to creating new instance of service, from the type above
 
 	//Set the Context; the user can get the context from her services function param
 	servVal.FieldByName("RestService").FieldByName("Context").Set(reflect.ValueOf(context))
@@ -366,7 +366,7 @@ Run:
 
 		}
 
-		//Query arguments are not compulsory on query, so the caller may ommit them, in which case we send a zero value f its type to the method. 
+		//Query arguments are not compulsory on query, so the caller may ommit them, in which case we send a zero value f its type to the method.
 		//Also they may be sent through in any order.
 		for _, par := range ep.queryParams {
 			dat := ""

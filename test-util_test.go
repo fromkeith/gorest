@@ -26,7 +26,7 @@
 package gorest
 
 import (
-	"log"
+	//"log"
 	"testing"
 )
 
@@ -53,6 +53,6 @@ func AssertEqual(given interface{}, expecting interface{}, compared string, t *t
 	if expecting != given {
 		t.Error("Fail Assert:", compared, " Expecting:", expecting, "; but is:", given)
 	} else {
-		log.Println("Pass Assert:", compared)
+		//log.Println("Pass Assert:", compared)
 	}
 }

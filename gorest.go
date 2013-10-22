@@ -183,7 +183,7 @@ func RegisterServiceOnPath(root string, h interface{}) {
 }
 
 //ServeHTTP dispatches the request to the handler whose pattern most closely matches the request URL.
-func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	url_, err := url.QueryUnescape(r.URL.RequestURI())
 
@@ -230,13 +230,13 @@ func (man *manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				{
 					if ctx.responseCode == 0 {
 						if !ctx.responseMimeSet {
-							w.Header().Set("Content-Type", man.getType(ep.parentTypeName).producesMime)
+							w.Header().Set("Content-Type", _manager().getType(ep.parentTypeName).producesMime)
 						}
 						w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
 					} else {
 						if !ctx.dataHasBeenWritten {
 							if !ctx.responseMimeSet {
-								w.Header().Set("Content-Type", man.getType(ep.parentTypeName).producesMime)
+								w.Header().Set("Content-Type", _manager().getType(ep.parentTypeName).producesMime)
 							}
 							w.WriteHeader(ctx.responseCode)
 						}
@@ -306,8 +306,8 @@ func ServeStandAlone(port int) {
 func _manager() *manager {
 	return restManager
 }
-func Handle() *manager {
-	return restManager
+func Handle() manager {
+	return *restManager
 }
 
 func getDefaultResponseCode(method string) int {

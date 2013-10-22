@@ -30,6 +30,7 @@ import (
 	"log"
 	"net/http"
 	//"net/http/httptest"
+	"runtime"
 	"testing"
 )
 
@@ -38,6 +39,7 @@ var RootPath = "http://localhost:8787" + MUX_ROOT
 var globalTestScope *testing.T //This is used to do Asserts inside the service implementations
 
 func TestInit(t *testing.T) {
+	runtime.GOMAXPROCS(runtime.NumCPU() * 4)
 	globalTestScope = t
 	log.Println("Starting tests")
 	log.SetOutput(ioutil.Discard) //Toggle comment in-out to see log output
@@ -45,6 +47,8 @@ func TestInit(t *testing.T) {
 	RegisterRealmAuthorizer("testing", TestingAuthorizer)
 	RegisterServiceOnPath(MUX_ROOT, new(TypesService))
 	RegisterServiceOnPath(MUX_ROOT, new(PathsService))
+	RegisterServiceOnPath(MUX_ROOT, new(StressService))
+
 	http.Handle(MUX_ROOT, Handle())
 
 	//http.HandleFunc(MUX_ROOT, HandleFunc)
@@ -62,6 +66,10 @@ func TestDataTransmition(t *testing.T) {
 }
 func TestPaths(t *testing.T) {
 	testPaths(t)
+}
+
+func TestStress(t *testing.T) {
+	testStress(t)
 }
 
 func TestServiceMeta(t *testing.T) {

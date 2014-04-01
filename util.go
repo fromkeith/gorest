@@ -27,6 +27,8 @@ package gorest
 
 import (
 	"bytes"
+	"io"
+	"io/ioutil"
 	"errors"
 	"reflect"
 	"strconv"
@@ -34,13 +36,13 @@ import (
 
 //Marshals the data in interface i into a byte slice, using the Marhaller/Unmarshaller specified in mime.
 //The Marhaller/Unmarshaller must have been registered before using gorest.RegisterMarshaller
-func Marshal(i interface{}, mime string) ([]byte, error) {
+func Marshal(i interface{}, mime string) (io.ReadCloser, error) {
 	return InterfaceToBytes(i, mime)
 }
 
 //Marshals the data in interface i into a byte slice, using the Marhaller/Unmarshaller specified in mime.
 //The Marhaller/Unmarshaller must have been registered before using gorest.RegisterMarshaller
-func InterfaceToBytes(i interface{}, mime string) ([]byte, error) {
+func InterfaceToBytes(i interface{}, mime string) (io.ReadCloser, error) {
 	v := reflect.ValueOf(i)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -49,24 +51,23 @@ func InterfaceToBytes(i interface{}, mime string) ([]byte, error) {
 	case reflect.Bool:
 		x := v.Bool()
 		if x {
-			return []byte("true"), nil
+			return ioutil.NopCloser(bytes.NewBuffer([]byte("true"))), nil
 		}
-		return []byte("false"), nil
+		return ioutil.NopCloser(bytes.NewBuffer([]byte("false"))), nil
 	case reflect.String:
-		return []byte(v.String()), nil
+		return ioutil.NopCloser(bytes.NewBuffer([]byte(v.String()))), nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return []byte(strconv.FormatInt(v.Int(), 10)), nil
+		return ioutil.NopCloser(bytes.NewBuffer([]byte(strconv.FormatInt(v.Int(), 10)))), nil
 	case reflect.Struct, reflect.Slice, reflect.Array, reflect.Map:
 		m := GetMarshallerByMime(mime)
 		return m.Marshal(i)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return []byte(strconv.FormatUint(v.Uint(), 10)), nil
+		return ioutil.NopCloser(bytes.NewBuffer([]byte(strconv.FormatUint(v.Uint(), 10)))), nil
 	case reflect.Float32, reflect.Float64:
-		return []byte(strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits())), nil
+		return ioutil.NopCloser(bytes.NewBuffer([]byte(strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits())))), nil
 	default:
 		return nil, errors.New("Type " + v.Type().Name() + " is not handled by GoRest.")
 	}
-
 }
 
 //Unmarshals the data in buf into interface i, using the Marhaller/Unmarshaller specified in mime.

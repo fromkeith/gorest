@@ -29,7 +29,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -212,7 +211,7 @@ func (this *RequestBuilder) Post(i interface{}) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	this._req.Body = ioutil.NopCloser(bytes.NewBuffer(bb))
+	this._req.Body = bb
 
 	return this.client.Do(this._req)
 

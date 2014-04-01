@@ -26,6 +26,7 @@
 package gorest
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -243,7 +244,7 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					}
 
 					if !ctx.overide {
-						w.Write(data)
+						io.Copy(w, data)
 					}
 
 				}

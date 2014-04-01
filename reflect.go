@@ -277,7 +277,7 @@ func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f refl
 //Runtime functions below:
 //-----------------------------------------------------------------------------------------------------------------
 
-func prepareServe(context *Context, ep endPointStruct) ([]byte, restStatus) {
+func prepareServe(context *Context, ep endPointStruct) (io.ReadCloser, restStatus) {
 	servMeta := _manager().getType(ep.parentTypeName)
 
 	//Check Authorization

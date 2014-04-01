@@ -26,13 +26,16 @@
 package gorest
 
 import (
+	"bytes"
+	"io"
+	"io/ioutil"
 	"encoding/json"
 	"encoding/xml"
 )
 
 //A Marshaller represents the two functions used to marshal/unmarshal interfaces back and forth.
 type Marshaller struct {
-	Marshal   func(v interface{}) ([]byte, error)
+	Marshal   func(v interface{}) (io.ReadCloser, error)
 	Unmarshal func(data []byte, v interface{}) error
 }
 
@@ -64,8 +67,12 @@ func NewJSONMarshaller() *Marshaller {
 	m := Marshaller{jsonMarshal, jsonUnMarshal}
 	return &m
 }
-func jsonMarshal(v interface{}) ([]byte, error) {
-	return json.Marshal(v)
+func jsonMarshal(v interface{}) (io.ReadCloser, error) {
+	j, e := json.Marshal(v)
+	if e != nil {
+		return nil, e
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(j)), nil
 }
 func jsonUnMarshal(data []byte, v interface{}) error {
 	return json.Unmarshal(data, v)
@@ -76,8 +83,12 @@ func NewXMLMarshaller() *Marshaller {
 	m := Marshaller{xmlMarshal, xmlUnMarshal}
 	return &m
 }
-func xmlMarshal(v interface{}) ([]byte, error) {
-	return xml.Marshal(v)
+func xmlMarshal(v interface{}) (io.ReadCloser, error) {
+	x, e := xml.Marshal(v)
+	if e != nil {
+		return nil, e
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(x)), nil
 }
 func xmlUnMarshal(data []byte, v interface{}) error {
 	return xml.Unmarshal(data, v)

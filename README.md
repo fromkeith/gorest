@@ -12,7 +12,9 @@ This fork changes the following:
 - RegisterRecoveryHandler(handler) added. This allows runtime errors to be handled by the user of the library.
 - OverrideLogger(logger) added. Allows the logger used in gorest to be overridden
 - RegisterHealthHandler(handler) added. Allows health info (status codes) to be more easily reported.
-- Invidual endpoints can now specify their own 'produces' tag. So you can have 1 service output many data types.
+- Individual endpoints can now specify their own 'produces' tag. So you can have 1 service output many data types.
+- Allow Put, Post and Delete requests to return data in the body.
+- Applied some enforcement on the 'output' tag, to ensure it is specified. (Unknown if this will break people)
 
 License
 =======

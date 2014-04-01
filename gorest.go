@@ -333,12 +333,11 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							writtenStatusCode = ctx.responseCode
 						}
 					}
-
-					if !ctx.overide {
-						io.Copy(w, data)
-					}
-
 				}
+			}
+
+			if data != nil && !ctx.overide {
+				io.Copy(w, data)
 			}
 
 		} else {

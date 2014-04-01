@@ -59,6 +59,7 @@ package gorest
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -128,10 +129,10 @@ func mapFieldsToMethods(t reflect.Type, f reflect.StructField, typeFullName stri
 
 		{ //Panic Checks
 			if !methFound {
-				_manager().logger.Panicf("Method name not found. %s", panicMethNotFound(methFound, ep, t, f, methodName))
+				_manager().logger.Panicf("Method name not found. %s", panicMethNotFound(methFound, ep, t, f, methodName, nil))
 			}
 			if !isLegalForRequestType(method.Type, ep) {
-				_manager().logger.Panicf("Parameter list not matching. %s", panicMethNotFound(methFound, ep, t, f, methodName))
+				_manager().logger.Panicf("Parameter list not matching. %s", panicMethNotFound(methFound, ep, t, f, methodName, &method.Type))
 			}
 		}
 		ep.methodNumberInParent = methodNumberInParent
@@ -144,30 +145,30 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 	cool = true
 
 	numInputIgnore := 0
-	numOut := 0
+	allowedOut := false
 
 	switch ep.requestMethod {
 	case POST, PUT:
 		{
 			numInputIgnore = 2 //The first param is the struct, the second the posted object
-			numOut = 0
+			allowedOut = true
 		}
-	case GET:
+	case GET, DELETE:
 		{
 			numInputIgnore = 1 //The first param is the default service struct
-			numOut = 1
+			allowedOut = true
 		}
-	case DELETE, HEAD, OPTIONS:
+	case HEAD, OPTIONS:
 		{
 			numInputIgnore = 1 //The first param is the default service struct
-			numOut = 0
+			allowedOut = false
 		}
 
 	}
 
 	if (methType.NumIn() - numInputIgnore) != (ep.paramLen + len(ep.queryParams)) {
 		cool = false
-	} else if methType.NumOut() != numOut {
+	} else if methType.NumOut() > 0 && !allowedOut {
 		cool = false
 	} else {
 		//Check the first parameter type for POST and PUT
@@ -226,27 +227,39 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 			j++
 		}
 		//Check output param type.
-		if numOut == 1 {
-			methVal := methType.Out(0)
-			if ep.outputTypeIsArray {
-				if methVal.Kind() == reflect.Slice {
-					methVal = methVal.Elem() //Only convert if it is mentioned as a slice in the tags, otherwise allow for failure panic
-				} else {
-					cool = false
-					return
-				}
-			}
-			if ep.outputTypeIsMap {
-				if methVal.Kind() == reflect.Map {
-					methVal = methVal.Elem()
-				} else {
-					cool = false
-					return
-				}
-			}
-
-			if !typeNamesEqual(methVal, ep.outputType) {
+		if allowedOut {
+			_manager().logger.Infof("name: %s outputType: %s. NumOut: %d", ep.name, ep.outputType, methType.NumOut())
+			if ep.requestMethod == "GET" && ep.outputType == "" {
 				cool = false
+				return
+			}
+			if ep.outputType == "" && methType.NumOut() != 0 {
+				cool = false
+				return
+			}
+			if ep.outputType != "" {
+
+				methVal := methType.Out(0)
+				if ep.outputTypeIsArray {
+					if methVal.Kind() == reflect.Slice {
+						methVal = methVal.Elem() //Only convert if it is mentioned as a slice in the tags, otherwise allow for failure panic
+					} else {
+						cool = false
+						return
+					}
+				}
+				if ep.outputTypeIsMap {
+					if methVal.Kind() == reflect.Map {
+						methVal = methVal.Elem()
+					} else {
+						cool = false
+						return
+					}
+				}
+
+				if !typeNamesEqual(methVal, ep.outputType) {
+					cool = false
+				}
 			}
 		}
 	}
@@ -262,7 +275,7 @@ func typeNamesEqual(methVal reflect.Type, name2 string) bool {
 	return fullName == name2
 }
 
-func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f reflect.StructField, methodName string) string {
+func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f reflect.StructField, methodName string, mt * reflect.Type) string {
 
 	var str string
 	isArr := ""
@@ -279,7 +292,11 @@ func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f refl
 	if ep.postdataTypeIsMap {
 		postIsArr = "map[string]"
 	}
-	var suffix string = "(" + isArr + ep.outputType + ")# with one(" + isArr + ep.outputType + ") return parameter."
+	var got string
+	if mt != nil {
+		got = fmt.Sprint(*mt)
+	}
+	var suffix string = fmt.Sprintf("(%s %s)# with (%s %s) return parameter. Got: %s", isArr,  ep.outputType, isArr, ep.outputType, got)
 	if ep.requestMethod == POST || ep.requestMethod == PUT {
 		str = "PostData " + postIsArr + ep.postdataType
 		if ep.paramLen > 0 {
@@ -287,9 +304,7 @@ func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f refl
 		}
 
 	}
-	if ep.requestMethod == POST || ep.requestMethod == PUT || ep.requestMethod == DELETE {
-		suffix = "# with no return parameters."
-	}
+
 	if ep.isVariableLength {
 		str += "varArgs ..." + ep.params[0].typeName + ","
 	} else {
@@ -419,10 +434,12 @@ Run:
 		if ep.isVariableLength {
 			ret = servVal.Method(ep.methodNumberInParent).CallSlice(arrArgs)
 		} else {
+			_manager().logger.Infof("servVal.Method(%d)", ep.methodNumberInParent)
 			ret = servVal.Method(ep.methodNumberInParent).Call(arrArgs)
 		}
 
-		if len(ret) == 1 { //This is when we have just called a GET
+		// has 1 return value, and the endpoint specifies a return type
+		if len(ret) == 1 && ep.outputType != "" {
 			var mimeType string
 			if mimeType = ep.overrideProducesMime; mimeType == "" {
 				mimeType = servMeta.producesMime
@@ -435,7 +452,6 @@ Run:
 				return nil, restStatus{http.StatusInternalServerError, "Internal server error. Could not Marshal/UnMarshal data: " + err.Error()}
 			}
 		} else {
-
 			return nil, restStatus{http.StatusOK, ""}
 		}
 	}

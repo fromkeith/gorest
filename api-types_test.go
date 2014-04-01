@@ -92,6 +92,7 @@ func testTypes(t *testing.T) {
 	postString(t)
 	postInteger(t)
 	postBool(t)
+	postBoolWithOutput(t)
 	postFloat(t)
 	postMapInt(t)
 	postMapStruct(t)
@@ -334,6 +335,18 @@ func postBool(t *testing.T) {
 	rb.AddCookie(cook)
 	res, _ := rb.Post(false)
 	AssertEqual(res.StatusCode, 200, "Post Boolean", t)
+}
+
+func postBoolWithOutput(t *testing.T) {
+	//postBool        EndPoint `method:"POST" path:"/bool/output" postdata:"bool" `
+	//*******************************
+
+	rb, _ := NewRequestBuilder(RootPath + "types-service/bool/output" + xrefStr)
+	rb.AddCookie(cook)
+	getResponse := false
+	res, _ := rb.PostWithResponse(true, &getResponse)
+	AssertEqual(res.StatusCode, 202, "Post Boolean", t)
+	AssertEqual(getResponse, true, "Response Boolean", t)
 }
 
 func postFloat(t *testing.T) {

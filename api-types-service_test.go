@@ -94,6 +94,7 @@ type TypesService struct {
 	postInteger EndPoint `method:"POST" path:"/int/{Bool:bool}/{Int:int}" postdata:"int" role:"postInt-user"`
 	postBool    EndPoint `method:"POST" path:"/bool/{Bool:bool}/{Int:int}" postdata:"bool" `
 	postFloat   EndPoint `method:"POST" path:"/float/{Bool:bool}/{Int:int}" postdata:"float64" `
+	postBoolWithOutput    EndPoint `method:"POST" path:"/bool/output" postdata:"bool" output:"bool" `
 
 	postMapInt EndPoint `
 						method:"POST" 
@@ -240,6 +241,9 @@ func (serv TypesService) PostBool(posted bool, Bool bool, Int int) {
 		serv.ResponseBuilder().SetResponseCode(400)
 	}
 	log.Println("posted:", posted)
+}
+func (serv TypesService) PostBoolWithOutput(posted bool) bool {
+	return posted
 }
 func (serv TypesService) PostFloat(posted float64, Bool bool, Int int) {
 	if posted == 34.56788 && Bool && Int == 5 {

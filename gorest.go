@@ -23,6 +23,38 @@
 //OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 //ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Notice: This code has been modified from its original source.
+// Modifications are licensed as specified below.
+//
+// Copyright (c) 2014, fromkeith
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without modification,
+// are permitted provided that the following conditions are met:
+//
+// * Redistributions of source code must retain the above copyright notice, this
+//   list of conditions and the following disclaimer.
+//
+// * Redistributions in binary form must reproduce the above copyright notice, this
+//   list of conditions and the following disclaimer in the documentation and/or
+//   other materials provided with the distribution.
+//
+// * Neither the name of the fromkeith nor the names of its
+//   contributors may be used to endorse or promote products derived from
+//   this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+// ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+// WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+// ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+// ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+///
+
 package gorest
 
 import (
@@ -92,9 +124,13 @@ type serviceMetaData struct {
 var restManager *manager
 var handlerInitialised bool
 
+
+type RecoverHandlerFunc func(http.ResponseWriter, *http.Request, interface{})
+
 type manager struct {
 	serviceTypes map[string]serviceMetaData
 	endpoints    map[string]endPointStruct
+	serverRecoverHandler 	RecoverHandlerFunc
 }
 
 func newManager() *manager {
@@ -190,10 +226,15 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Println("Internal Server Error: Could not serve page: ", r.Method, url_)
-			log.Println(rec)
-			log.Printf("%s", debug.Stack())
-			w.WriteHeader(http.StatusInternalServerError)
+			recoverFunc := _manager().serverRecoverHandler
+			if recoverFunc != nil {
+				recoverFunc(w, r, rec)
+			} else {
+				log.Println("Internal Server Error: Could not serve page: ", r.Method, url_)
+				log.Println(rec)
+				log.Printf("%s", debug.Stack())
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 		}
 	}()
 
@@ -263,6 +304,15 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("The resource in the requested path could not be found."))
 	}
 
+}
+
+
+func RegisterRecoveryHandler(handler RecoverHandlerFunc) {
+	if !handlerInitialised {
+		restManager = newManager()
+		handlerInitialised = true
+	}
+	_manager().serverRecoverHandler = handler
 }
 
 func (man *manager) getType(name string) serviceMetaData {

@@ -277,6 +277,9 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		_manager().logger.Errorf("Could not serve page: %s %v Error: %v", r.Method, r.URL.RequestURI(), err)
 		w.WriteHeader(400)
 		w.Write([]byte("Client sent bad request."))
+		if _manager().serverHealthHandler != nil {
+			_manager().serverHealthHandler.ReportResponseCode(r.URL, 400)
+		}
 		return
 	}
 

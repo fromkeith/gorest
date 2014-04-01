@@ -10,6 +10,8 @@ This fork changes the following:
 
 - Response marshallers return the type io.Reader instead of []byte. (Breaking change)
 - RegisterRecoveryHandler(handler) added. This allows runtime errors to be handled by the user of the library.
+- OverrideLogger(logger) added. Allows the logger used in gorest to be overridden
+- RegisterHealthHandler(handler) added. Allows health info (status codes) to be more easily reported.
 
 License
 =======

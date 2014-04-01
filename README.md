@@ -3,6 +3,8 @@ gorest
 
 A fork of http://code.google.com/p/gorest/
 
+Documentation: http://godoc.org/github.com/fromkeith/gorest
+
 This Fork
 =========
 

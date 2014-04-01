@@ -129,10 +129,13 @@ type HealthHandler interface {
 	ReportResponseCode(urlPath *url.URL, code int)
 }
 
+// A simple interface to wrap a basic leveled logger.
+// The format strings to do not have newlines on them.
 type SimpleLogger interface {
 	Infof(fmt string, args ... interface{})
 	Warnf(fmt string, args ... interface{})
 	Errorf(fmt string, args ... interface{})
+	// Log the panic and exit.
 	Panicf(fmt string, args ... interface{})
 }
 

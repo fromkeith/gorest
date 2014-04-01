@@ -45,6 +45,7 @@ func TestInit(t *testing.T) {
 	log.SetOutput(ioutil.Discard) //Toggle comment in-out to see log output
 
 	RegisterRealmAuthorizer("testing", TestingAuthorizer)
+	RegisterMarshaller("application/xml", NewXMLMarshaller())
 	RegisterServiceOnPath(MUX_ROOT, new(TypesService))
 	RegisterServiceOnPath(MUX_ROOT, new(PathsService))
 	RegisterServiceOnPath(MUX_ROOT, new(StressService))

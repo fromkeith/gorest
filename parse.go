@@ -179,6 +179,10 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 			ms.role = tag
 		}
 
+		if tag := tags.Get("produces"); tag != "" {
+			ms.overrideProducesMime = tag
+		}
+
 		if tag := tags.Get("postdata"); tag != "" {
 			ms.postdataType = tag
 			if strings.HasPrefix(tag, "[]") { //Check for slice/array/list types.

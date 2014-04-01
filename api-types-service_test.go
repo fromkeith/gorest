@@ -52,6 +52,8 @@ type TypesService struct {
 	getMapInt            EndPoint `method:"GET" path:"/mapint/{Bool:bool}/{Int:int}" output:"map[string]int"`
 	getMapStruct         EndPoint `method:"GET" path:"/mapstruct/{Bool:bool}/{Int:int}" output:"map[string]User"`
 	getArrayStruct       EndPoint `method:"GET" path:"/arraystruct/{FName:string}/{Age:int}" output:"[]User"`
+	getArrayStructXml    EndPoint `method:"GET" path:"/arraystruct/xml/{FName:string}/{Age:int}" output:"[]User" produces:"application/xml"`
+	getStringChangeProduces EndPoint `method:"GET" path:"/hello/{name:string}" output:"string" produces:"application/xml"`
 
 	postVarArgs EndPoint `method:"POST" path:"/var/{...:int}" postdata:"string"`
 	postString  EndPoint `method:"POST" path:"/string/{Bool:bool}/{Int:int}" postdata:"string" role:"post-user"`
@@ -139,6 +141,10 @@ func (serv TypesService) GetStringSimilarPath(name string) string {
 	return "Yebo-Yes-" + name
 }
 
+func (serv TypesService) GetStringChangeProduces(name string) string {
+	return "Yebo-Gogo-" + name
+}
+
 func (serv TypesService) GetString(Bool bool, Int int, Flow int, Name string) string {
 	return "Hello" + strconv.FormatBool(Bool) + strconv.Itoa(Int) + "/" + Name + strconv.Itoa(Flow)
 }
@@ -171,6 +177,10 @@ func (serv TypesService) GetArrayStruct(FName string, Age int) []User {
 	users = append(users, User{"user1", FName, "Soap", Age, 89.7})
 	users = append(users, User{"user2", FName, "Soap2", Age, 89.7})
 	return users
+}
+
+func (serv TypesService) GetArrayStructXml(FName string, Age int) []User {
+	return serv.GetArrayStruct(FName, Age)
 }
 
 func (serv TypesService) PostString(posted string, Bool bool, Int int) {

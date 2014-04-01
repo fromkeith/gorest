@@ -423,8 +423,12 @@ Run:
 		}
 
 		if len(ret) == 1 { //This is when we have just called a GET
+			var mimeType string
+			if mimeType = ep.overrideProducesMime; mimeType == "" {
+				mimeType = servMeta.producesMime
+			}
 			//At this stage we should be ready to write the response to client
-			if bytarr, err := InterfaceToBytes(ret[0].Interface(), servMeta.producesMime); err == nil {
+			if bytarr, err := InterfaceToBytes(ret[0].Interface(), mimeType); err == nil {
 				return bytarr, restStatus{http.StatusOK, ""}
 			} else {
 				//This is an internal error with the registered marshaller not being able to marshal internal structs

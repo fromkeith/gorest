@@ -102,6 +102,7 @@ type endPointStruct struct {
 	parentTypeName       string
 	methodNumberInParent int
 	role                 string
+	overrideProducesMime string // overrides the produces mime type
 }
 
 type restStatus struct {
@@ -295,6 +296,12 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		data, state := prepareServe(ctx, ep)
 		writtenStatusCode := -1
 
+		var mimeType string
+		if mimeType = ep.overrideProducesMime; mimeType == "" {
+			mimeType = _manager().getType(ep.parentTypeName).producesMime
+		}
+
+
 		if state.httpCode == http.StatusOK {
 			switch ep.requestMethod {
 			case POST, PUT, DELETE, HEAD, OPTIONS:
@@ -313,14 +320,14 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				{
 					if ctx.responseCode == 0 {
 						if !ctx.responseMimeSet {
-							w.Header().Set("Content-Type", _manager().getType(ep.parentTypeName).producesMime)
+							w.Header().Set("Content-Type", mimeType)
 						}
 						writtenStatusCode = getDefaultResponseCode(ep.requestMethod)
 						w.WriteHeader(writtenStatusCode)
 					} else {
 						if !ctx.dataHasBeenWritten {
 							if !ctx.responseMimeSet {
-								w.Header().Set("Content-Type", _manager().getType(ep.parentTypeName).producesMime)
+								w.Header().Set("Content-Type", mimeType)
 							}
 							w.WriteHeader(ctx.responseCode)
 							writtenStatusCode = ctx.responseCode
@@ -354,7 +361,6 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("The resource in the requested path could not be found."))
 	}
-
 }
 
 func intializeManager() {

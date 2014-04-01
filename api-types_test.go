@@ -49,6 +49,8 @@ func testTypes(t *testing.T) {
 	getMapInt(t)
 	getMapStruct(t)
 	getArrayStruct(t)
+	getArrayStructXml(t)
+	getStringChangeProduces(t)
 
 	postVarArgs(t)
 	postVarArgs(t)
@@ -223,6 +225,39 @@ func getArrayStruct(t *testing.T) {
 		AssertEqual(au[0].Id, "user1", "Get Array Struct", t)
 		AssertEqual(au[0].FirstName, "Sandy", "Get Array Struct", t)
 	}
+	AssertEqual(res.Header.Get("Content-Type"), "application/json", "Get the content-type", t)
+}
+
+func getArrayStructXml(t *testing.T) {
+	//getArrayStruct       EndPoint `method:"GET" path:"/arraystruct/xml/{FName:string}/{Age:int}" output:"[]User" produces:"application/xml"`
+	//*******************************
+	au := make([]User, 0)
+	rb, _ := NewRequestBuilder(RootPath + "types-service/arraystruct/xml/Sandy/2" + xrefStr)
+	rb.UseContentType("application/xml")
+	rb.AddCookie(cook)
+	res, _ := rb.Get(&au, 200)
+	AssertEqual(res.StatusCode, 200, "Get Array struct ResponseCode", t)
+	AssertEqual(res.Header.Get("Content-Type"), "application/xml", "Get the content-type", t)
+	if res.StatusCode == 200 {
+		AssertEqual(au[0].Id, "user1", "Get Array Struct", t)
+		AssertEqual(au[0].FirstName, "Sandy", "Get Array Struct", t)
+	}
+}
+
+func getStringChangeProduces(t *testing.T) {
+	//getStringChangeProduces EndPoint `method:"GET" path:"/hello/{name:string}" output:"string" produces:"application/xml"`
+	//*******************************
+
+	rb, _ := NewRequestBuilder(RootPath + "types-service/hello/bobby" + xrefStr)
+	rb.AddCookie(cook)
+	rb.UseContentType("application/xml")
+	//GET string
+
+	res, _ := rb.Get(&str, 200)
+	AssertEqual(res.StatusCode, 200, "Get string ResponseCode", t)
+	AssertEqual(str, "Yebo-Gogo-bobby", "Get string", t)
+	AssertEqual(res.Header.Get("Content-Type"), "application/xml", "Get the content-type", t)
+
 }
 
 func postString(t *testing.T) {

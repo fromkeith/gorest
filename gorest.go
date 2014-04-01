@@ -59,12 +59,12 @@ package gorest
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"log" // for the default logger
 )
 
 type GoRestService interface {
@@ -129,6 +129,13 @@ type HealthHandler interface {
 	ReportResponseCode(urlPath *url.URL, code int)
 }
 
+type SimpleLogger interface {
+	Infof(fmt string, args ... interface{})
+	Warnf(fmt string, args ... interface{})
+	Errorf(fmt string, args ... interface{})
+	Panicf(fmt string, args ... interface{})
+}
+
 var restManager *manager
 var handlerInitialised bool
 
@@ -140,12 +147,31 @@ type manager struct {
 	endpoints    map[string]endPointStruct
 	serverRecoverHandler 	RecoverHandlerFunc
 	serverHealthHandler 	HealthHandler
+	logger 					SimpleLogger
 }
+
+type defaultLogger struct {}
+
+
+func (d defaultLogger) Infof(fmt string, args ... interface{}) {
+	log.Printf(fmt + "\n", args...)
+}
+func (d defaultLogger) Warnf(fmt string, args ... interface{}) {
+	log.Printf(fmt + "\n", args...)
+}
+func (d defaultLogger) Errorf(fmt string, args ... interface{}) {
+	log.Printf(fmt + "\n", args...)
+}
+func (d defaultLogger) Panicf(fmt string, args ... interface{}) {
+	log.Panicf(fmt + "\n", args...)
+}
+
 
 func newManager() *manager {
 	man := new(manager)
 	man.serviceTypes = make(map[string]serviceMetaData, 0)
 	man.endpoints = make(map[string]endPointStruct, 0)
+	man.logger = defaultLogger{}
 	return man
 }
 func init() {
@@ -235,17 +261,17 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			recoverFunc := _manager().serverRecoverHandler
 			if recoverFunc != nil {
 				recoverFunc(w, r, rec)
-			} else {
-				log.Println("Internal Server Error: Could not serve page: ", r.Method, url_)
-				log.Println(rec)
-				log.Printf("%s", debug.Stack())
-				w.WriteHeader(http.StatusInternalServerError)
+			} else if _manager().logger != nil {
+				_manager().logger.Errorf("Internal Server Error: Could not serve page: %s %s", r.Method, url_)
+				_manager().logger.Errorf("Panic: %v", rec)
+				_manager().logger.Errorf("%s", debug.Stack())
 			}
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}()
 
 	if err != nil {
-		log.Println("Could not serve page: ", r.Method, r.URL.RequestURI(), "Error:", err)
+		_manager().logger.Errorf("Could not serve page: %s %v Error: %v", r.Method, r.URL.RequestURI(), err)
 		w.WriteHeader(400)
 		w.Write([]byte("Client sent bad request."))
 		return
@@ -303,7 +329,9 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 		} else {
-			log.Println("Problem with request. Error:", r.Method, state.httpCode, state.reason, "; Request: ", r.URL.RequestURI())
+			if _manager().logger != nil {
+				_manager().logger.Errorf("Problem with request. Error: %s %d %s; Request: %v", r.Method, state.httpCode, state.reason, r.URL.RequestURI())
+			}
 			w.WriteHeader(state.httpCode)
 			w.Write([]byte(state.reason))
 		}
@@ -313,7 +341,9 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		log.Println("Could not serve page, path not found: ", r.Method, url_)
+		if _manager().logger != nil {
+			_manager().logger.Warnf("Could not serve page, path not found: %s %s", r.Method, url_)
+		}
 		//		println("Could not serve page, path not found: ", r.Method, url_)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("The resource in the requested path could not be found."))
@@ -328,6 +358,13 @@ func intializeManager() {
 	}
 }
 
+// Overrides the logger with your own version
+func OverrideLogger(logger SimpleLogger) {
+	intializeManager()
+	_manager().logger = logger
+}
+
+// Registers the handler to deal with health information
 func RegisterHealthHandler(handler HealthHandler) {
 	intializeManager()
 	_manager().serverHealthHandler = handler
@@ -359,12 +396,19 @@ func (man *manager) addEndPoint(ep endPointStruct) {
 
 //Registeres the function to be used for handling all requests directed to gorest.
 func HandleFunc(w http.ResponseWriter, r *http.Request) {
-	log.Println("Serving URL : ", r.Method, r.URL.RequestURI())
+	if _manager().logger != nil {
+		_manager().logger.Infof("Serving URL : %s %v", r.Method, r.URL.RequestURI())
+	}
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Println("Internal Server Error: Could not serve page: ", r.Method, r.RequestURI)
-			log.Println(rec)
-			log.Printf("%s", debug.Stack())
+			recoverFunc := _manager().serverRecoverHandler
+			if recoverFunc != nil {
+				recoverFunc(w, r, rec)
+			} else if _manager().logger != nil {
+				_manager().logger.Errorf("Internal Server Error: Could not serve page: %s %s", r.Method, r.URL.Path)
+				_manager().logger.Errorf("Panic: %v", rec)
+				_manager().logger.Errorf("%s", debug.Stack())
+			}
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 	}()

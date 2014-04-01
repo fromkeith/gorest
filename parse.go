@@ -26,7 +26,6 @@
 package gorest
 
 import (
-	"log"
 	"reflect"
 	"strings"
 )
@@ -43,6 +42,19 @@ type param struct {
 
 var aLLOWED_PAR_TYPES = []string{"string", "int", "int32", "int64", "bool", "float32", "float64"}
 
+const (
+	errorString_MarshalMimeType = "The Marshaller for mime-type:[%s], is not registered. Please register this type before registering your service."
+	errorString_Realm = "The realm:[%s], is not registered. Please register this realm before registering your service."
+	errorString_UnknownMethod = "Unknown method type:[%s] in endpoint declaration. Allowed types {GET,POST,PUT,DELETE,HEAD,OPTIONS}"
+	errorString_EndpointDecl = "Endpoint declaration must have the tags 'method' and 'path' "
+	errorString_StringMap = "Only string keyed maps e.g( map[string]... ) are allowed on the [%s] tag. Endpoint: %s"
+	errorString_DuplicateQueryParam = "Duplicate Query Parameter name(%s) in REST path: %s"
+	errorString_QueryParamConfig = "Please check that your Query Parameters are configured correctly for endpoint: %s"
+	errorString_VariableLength = "Variable length endpoints can only have one parameter declaration: %s"
+	errorString_RegisterSameMethod = "Can not register two endpoints with same request-method(%s) and same signature: %s VS %s"
+	errorString_UniqueRoot = "Variable length endpoints can only be mounted on a unique root. Root already used: %s <> %s"
+)
+
 func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, name string) serviceMetaData {
 	md := new(serviceMetaData)
 
@@ -52,11 +64,11 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if root != "" {
 		md.root = root + md.root
 	}
-	log.Println("All EndPoints for service [", name, "] , registered under root path: ", md.root)
+	_manager().logger.Infof("All EndPoints for service [%s] , registered under root path: %s", name, md.root)
 	if tag := tags.Get("consumes"); tag != "" {
 		md.consumesMime = tag
 		if GetMarshallerByMime(tag) == nil {
-			log.Panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
+			_manager().logger.Panicf(errorString_MarshalMimeType, tag)
 		}
 
 	} else {
@@ -65,7 +77,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if tag := tags.Get("produces"); tag != "" {
 		md.producesMime = tag
 		if GetMarshallerByMime(tag) == nil {
-			log.Panic("The Marshaller for mime-type:[" + tag + "], is not registered. Please register this type before registering your service.")
+			_manager().logger.Panicf(errorString_MarshalMimeType, tag)
 		}
 	} else {
 		md.producesMime = Application_Json //Default
@@ -74,7 +86,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if tag := tags.Get("realm"); tag != "" {
 		md.realm = tag
 		if GetAuthorizer(tag) == nil {
-			log.Panic("The realm:[" + tag + "], is not registered. Please register this realm before registering your service.")
+			_manager().logger.Panicf(errorString_Realm, tag)
 		}
 	}
 
@@ -100,14 +112,14 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 		} else if tag == "OPTIONS" {
 			ms.requestMethod = OPTIONS
 		} else {
-			log.Panic("Unknown method type:[" + tag + "] in endpoint declaration. Allowed types {GET,POST,PUT,DELETE,HEAD,OPTIONS}")
+			_manager().logger.Panicf(errorString_UnknownMethod, tag)
 		}
 
 		if tag := tags.Get("path"); tag != "" {
 			serviceRoot = strings.TrimRight(serviceRoot, "/")
 			ms.signiture = serviceRoot + "/" + strings.Trim(tag, "/")
 		} else {
-			log.Panic("Endpoint declaration must have the tags 'method' and 'path' ")
+			_manager().logger.Panicf(errorString_EndpointDecl)
 		}
 
 		if tag := tags.Get("output"); tag != "" {
@@ -122,7 +134,7 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 					ms.outputTypeIsMap = true
 					ms.outputType = ms.outputType[11:]
 				} else {
-					log.Panic("Only string keyed maps e.g( map[string]... ) are allowed on the [output] tag. Endpoint: " + ms.signiture)
+					_manager().logger.Panicf(errorString_StringMap, "output", ms.signiture)
 				}
 
 			}
@@ -147,7 +159,7 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 					ms.postdataTypeIsMap = true
 					ms.postdataType = ms.postdataType[11:]
 				} else {
-					log.Panic("Only string keyed maps e.g( map[string]... ) are allowed on the [postdata] tag. Endpoint: " + ms.signiture)
+					_manager().logger.Panicf(errorString_StringMap, "postdata", ms.signiture)
 				}
 
 			}
@@ -157,7 +169,7 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 		return *ms
 	}
 
-	log.Panic("Endpoint declaration must have the tags 'method' and 'path' ")
+	_manager().logger.Panicf("Endpoint declaration must have the tags 'method' and 'path' ")
 	return *ms //Should not get here
 
 }
@@ -185,13 +197,13 @@ func parseParams(e *endPointStruct) {
 
 				for _, par := range e.queryParams {
 					if par.name == parName {
-						log.Panic("Duplicate Query Parameter name(" + parName + ") in REST path: " + e.signiture)
+						_manager().logger.Panicf(errorString_DuplicateQueryParam, parName, e.signiture)
 					}
 				}
 				//e.queryParams[len(e.queryParams)] = param{pos, parName, typeName}
 				e.queryParams = append(e.queryParams, param{pos, parName, typeName})
 			} else {
-				log.Panic("Please check that your Query Parameters are configured correctly for endpoint: " + e.signiture)
+				_manager().logger.Panicf(errorString_QueryParamConfig, e.signiture)
 			}
 		}
 	}
@@ -219,7 +231,7 @@ func parseParams(e *endPointStruct) {
 			}
 			for _, par := range e.params {
 				if par.name == parName {
-					log.Panic("Duplicate Path Parameter name(" + parName + ") in REST path: " + e.signiture)
+					_manager().logger.Panicf(errorString_DuplicateQueryParam, parName, e.signiture)
 				}
 			}
 
@@ -234,18 +246,18 @@ func parseParams(e *endPointStruct) {
 	e.root = strings.TrimRight(e.root, "/")
 
 	if e.isVariableLength && e.paramLen > 1 {
-		log.Panic("Variable length endpoints can only have one parameter declaration: " + pathPart)
+		_manager().logger.Panicf(errorString_VariableLength, pathPart)
 	}
 
 	for key, ep := range _manager().endpoints {
 		if ep.root == e.root && ep.signitureLen == e.signitureLen && reflect.DeepEqual(ep.nonParamPathPart, e.nonParamPathPart) && ep.requestMethod == e.requestMethod {
-			log.Panic("Can not register two endpoints with same request-method(" + ep.requestMethod + ") and same signature: " + e.signiture + " VS " + ep.signiture)
+			_manager().logger.Panicf(errorString_RegisterSameMethod, ep.requestMethod, e.signiture, ep.signiture)
 		}
 		if ep.requestMethod == e.requestMethod && pathPart == key {
-			log.Panic("Endpoint already registered: " + pathPart)
+			_manager().logger.Panicf("Endpoint already registered: %s", pathPart)
 		}
 		if e.isVariableLength && (strings.Index(ep.root+"/", e.root+"/") == 0 || strings.Index(e.root+"/", ep.root+"/") == 0) && ep.requestMethod == e.requestMethod {
-			log.Panic("Variable length endpoints can only be mounted on a unique root. Root already used: " + ep.root + " <> " + e.root)
+			_manager().logger.Panicf(errorString_UniqueRoot, ep.root, e.root)
 		}
 	}
 }
@@ -255,13 +267,13 @@ func getVarTypePair(part string, sign string) (parName string, typeName string) 
 	temp := strings.Trim(part, "{}")
 	ind := 0
 	if ind = strings.Index(temp, ":"); ind == -1 {
-		log.Panic("Please ensure that parameter names(" + temp + ") have associated types in REST path: " + sign)
+		_manager().logger.Panicf("Please ensure that parameter names(%s) have associated types in REST path: %s", temp, sign)
 	}
 	parName = temp[:ind]
 	typeName = temp[ind+1:]
 
 	if !isAllowedParamType(typeName) {
-		log.Panic("Type " + typeName + " is not allowed for Path/Query-parameters in REST path: " + sign)
+		_manager().logger.Panicf("Type %s is not allowed for Path/Query-parameters in REST path: %s", typeName, sign)
 	}
 
 	return
@@ -345,7 +357,7 @@ EPLOOP:
 					dataString := str1[i+1:]
 					if pName == XSXRF_PARAM_NAME {
 						xsrft = strings.Trim(dataString, " ")
-						log.Print("Session Id:", xsrft)
+						_manager().logger.Infof("Session Id: %s", xsrft)
 					} else {
 						for _, par := range ep.queryParams {
 							if par.name == pName {

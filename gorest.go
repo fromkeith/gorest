@@ -121,16 +121,25 @@ type serviceMetaData struct {
 	realm        string
 }
 
+// HealthHandler reports some overal health information about requests.
+type HealthHandler interface {
+	// Called on the succesfull (no panics) handling of a request
+	// Reports the Response (status) code of a request. Usefull to help capture
+	// the overall health of your server.
+	ReportResponseCode(urlPath *url.URL, code int)
+}
+
 var restManager *manager
 var handlerInitialised bool
 
-
+// The request's response writter and request body. Along with the recover object as returned by recover()
 type RecoverHandlerFunc func(http.ResponseWriter, *http.Request, interface{})
 
 type manager struct {
 	serviceTypes map[string]serviceMetaData
 	endpoints    map[string]endPointStruct
 	serverRecoverHandler 	RecoverHandlerFunc
+	serverHealthHandler 	HealthHandler
 }
 
 func newManager() *manager {
@@ -202,10 +211,7 @@ func RegisterService(h interface{}) {
 //	}
 func RegisterServiceOnPath(root string, h interface{}) {
 	//We only initialise the handler management once we know gorest is being used to hanlde request as well, not just client.
-	if !handlerInitialised {
-		restManager = newManager()
-		handlerInitialised = true
-	}
+	intializeManager()
 
 	if root == "/" {
 		root = ""
@@ -255,16 +261,19 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx.xsrftoken = xsrft
 
 		data, state := prepareServe(ctx, ep)
+		writtenStatusCode := -1
 
 		if state.httpCode == http.StatusOK {
 			switch ep.requestMethod {
 			case POST, PUT, DELETE, HEAD, OPTIONS:
 				{
 					if ctx.responseCode == 0 {
-						w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
+						writtenStatusCode = getDefaultResponseCode(ep.requestMethod)
+						w.WriteHeader(writtenStatusCode)
 					} else {
 						if !ctx.dataHasBeenWritten {
 							w.WriteHeader(ctx.responseCode)
+							writtenStatusCode = ctx.responseCode
 						}
 					}
 				}
@@ -274,13 +283,15 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						if !ctx.responseMimeSet {
 							w.Header().Set("Content-Type", _manager().getType(ep.parentTypeName).producesMime)
 						}
-						w.WriteHeader(getDefaultResponseCode(ep.requestMethod))
+						writtenStatusCode = getDefaultResponseCode(ep.requestMethod)
+						w.WriteHeader(writtenStatusCode)
 					} else {
 						if !ctx.dataHasBeenWritten {
 							if !ctx.responseMimeSet {
 								w.Header().Set("Content-Type", _manager().getType(ep.parentTypeName).producesMime)
 							}
 							w.WriteHeader(ctx.responseCode)
+							writtenStatusCode = ctx.responseCode
 						}
 					}
 
@@ -297,6 +308,10 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(state.reason))
 		}
 
+		if _manager().serverHealthHandler != nil && writtenStatusCode != -1 {
+			_manager().serverHealthHandler.ReportResponseCode(r.URL, writtenStatusCode)
+		}
+
 	} else {
 		log.Println("Could not serve page, path not found: ", r.Method, url_)
 		//		println("Could not serve page, path not found: ", r.Method, url_)
@@ -306,12 +321,21 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 }
 
-
-func RegisterRecoveryHandler(handler RecoverHandlerFunc) {
+func intializeManager() {
 	if !handlerInitialised {
 		restManager = newManager()
 		handlerInitialised = true
 	}
+}
+
+func RegisterHealthHandler(handler HealthHandler) {
+	intializeManager()
+	_manager().serverHealthHandler = handler
+}
+
+// Register a callback that will be fired whenever gorest runs into a runtime error.
+func RegisterRecoveryHandler(handler RecoverHandlerFunc) {
+	intializeManager()
 	_manager().serverRecoverHandler = handler
 }
 

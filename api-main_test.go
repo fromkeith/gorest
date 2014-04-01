@@ -73,7 +73,8 @@ func TestStress(t *testing.T) {
 }
 
 func TestServiceMeta(t *testing.T) {
-	if meta, found := restManager.serviceTypes["code.google.com/p/gorest/TypesService"]; !found {
+	// this test fails if you are using a different root. (Eg. forked off github.com/fromkeith, or code.google.com/p/gorest)
+	if meta, found := restManager.serviceTypes["github.com/fromkeith/gorest/TypesService"]; !found {
 		t.Error("Service Not registered correctly")
 	} else {
 		AssertEqual(meta.consumesMime, "application/json", "Service consumesMime", t)

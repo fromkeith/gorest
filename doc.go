@@ -71,9 +71,10 @@ define a 'role'. Using these two pieces of information authorization is verified
 First we need to define the authorizer for our realm. This will handle all requests for that realm,
 and determine if the specified role and token are valid for the request.
 
-    func SimpleAuthorizer(xsrfToken, role string) (bool, bool, gorest.SessionData) {
+    func SimpleAuthorizer(xsrfToken, role string, req *http.Request) (bool, bool, gorest.SessionData) {
         // xsrfToken is the token given to us by the request
         // role is the role specified by the endpoint being hit by the request
+        // req is the request that is being made.
 
         // At this point you want to verify the authenticity of the xsrfToken
         // You should determine it is valid, or not, and also grab any

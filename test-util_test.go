@@ -28,13 +28,17 @@ package gorest
 import (
 	//"log"
 	"testing"
+	"net/http"
 )
 
-func TestingAuthorizer(id string, role string) (bool, bool, SessionData) {
+func TestingAuthorizer(id string, role string, req * http.Request) (bool, bool, SessionData) {
 	if idsInRealm == nil {
 		idsInRealm = make(map[string][]string, 0)
 		idsInRealm["12345"] = []string{"var-user", "string-user", "post-user"}
 		idsInRealm["fox"] = []string{"postInt-user"}
+	}
+	if req == nil {
+		return false, false, nil
 	}
 
 	if roles, found := idsInRealm[id]; found {

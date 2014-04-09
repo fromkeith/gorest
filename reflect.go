@@ -92,7 +92,7 @@ func registerService(root string, h interface{}) {
 		if field, found := t.FieldByName("RestService"); found {
 			temp := strings.Join(strings.Fields(string(field.Tag)), " ")
 			meta := prepServiceMetaData(root, reflect.StructTag(temp), h, t.Name())
-			tFullName := _manager().addType(t.PkgPath() + "/" + t.Name(), meta)
+			tFullName := _manager().addType(t.PkgPath()+"/"+t.Name(), meta)
 			for i := 0; i < t.NumField(); i++ {
 				f := t.Field(i)
 				mapFieldsToMethods(t, f, tFullName, meta.root)
@@ -228,7 +228,6 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 		}
 		//Check output param type.
 		if allowedOut {
-			_manager().logger.Infof("name: %s outputType: %s. NumOut: %d", ep.name, ep.outputType, methType.NumOut())
 			if ep.requestMethod == "GET" && ep.outputType == "" {
 				cool = false
 				return
@@ -275,7 +274,7 @@ func typeNamesEqual(methVal reflect.Type, name2 string) bool {
 	return fullName == name2
 }
 
-func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f reflect.StructField, methodName string, mt * reflect.Type) string {
+func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f reflect.StructField, methodName string, mt *reflect.Type) string {
 
 	var str string
 	isArr := ""
@@ -296,7 +295,7 @@ func panicMethNotFound(methFound bool, ep endPointStruct, t reflect.Type, f refl
 	if mt != nil {
 		got = fmt.Sprint(*mt)
 	}
-	var suffix string = fmt.Sprintf("(%s %s)# with (%s %s) return parameter. Got: %s", isArr,  ep.outputType, isArr, ep.outputType, got)
+	var suffix string = fmt.Sprintf("(%s %s)# with (%s %s) return parameter. Got: %s", isArr, ep.outputType, isArr, ep.outputType, got)
 	if ep.requestMethod == POST || ep.requestMethod == PUT {
 		str = "PostData " + postIsArr + ep.postdataType
 		if ep.paramLen > 0 {
@@ -330,7 +329,7 @@ func prepareServe(context *Context, ep endPointStruct) (io.ReadCloser, restStatu
 
 	if servMeta.realm != "" {
 		if context.xsrftoken != "" {
-			inRealm, inRole, sess := GetAuthorizer(servMeta.realm)(context.xsrftoken, ep.role)
+			inRealm, inRole, sess := GetAuthorizer(servMeta.realm)(context.xsrftoken, ep.role, context.Request())
 			context.relSessionData = sess
 			if ep.role != "" {
 				if inRealm && inRole {

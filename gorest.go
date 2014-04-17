@@ -105,6 +105,10 @@ type endPointStruct struct {
 	overrideProducesMime string // overrides the produces mime type
 }
 
+type EndPointHelper struct {
+	endPoint endPointStruct
+}
+
 type restStatus struct {
 	httpCode int
 	reason   string //Especially for code in range 4XX to 5XX
@@ -124,10 +128,10 @@ type serviceMetaData struct {
 
 // HealthHandler reports some overal health information about requests.
 type HealthHandler interface {
-	// Called on the succesfull (no panics) handling of a request
+	// Called on the handling of a request.
 	// Reports the Response (status) code of a request. Usefull to help capture
 	// the overall health of your server.
-	ReportResponseCode(urlPath *url.URL, code int)
+	ReportResponseCode(urlPath *url.URL, code int, endPoint *EndPointHelper)
 }
 
 // A simple interface to wrap a basic leveled logger.
@@ -181,6 +185,19 @@ func newManager() *manager {
 func init() {
 	RegisterMarshaller(Application_Json, NewJSONMarshaller())
 
+}
+
+// Name of the endpoint. The variable name you used to in the endpoint definition
+func (e EndPointHelper) GetName() string {
+	return e.endPoint.name
+}
+// The signature of the path used in the endpoint defintion. Eg: /cars/{id:string}
+func (e EndPointHelper) GetSignature() string {
+	return e.endPoint.signiture
+}
+// The method used on the request. Eg. GET, PUT, ...
+func (e EndPointHelper) GetMethod() string {
+	return e.endPoint.requestMethod
 }
 
 //Registeres a service on the rootpath.
@@ -265,6 +282,9 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			recoverFunc := _manager().serverRecoverHandler
 			if recoverFunc != nil {
 				recoverFunc(w, r, rec)
+				if _manager().serverHealthHandler != nil {
+					_manager().serverHealthHandler.ReportResponseCode(r.URL, 500, nil)
+				}
 			} else if _manager().logger != nil {
 				_manager().logger.Errorf("Internal Server Error: Could not serve page: %s %s", r.Method, url_)
 				_manager().logger.Errorf("Panic: %v", rec)
@@ -279,7 +299,7 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		w.Write([]byte("Client sent bad request."))
 		if _manager().serverHealthHandler != nil {
-			_manager().serverHealthHandler.ReportResponseCode(r.URL, 400)
+			_manager().serverHealthHandler.ReportResponseCode(r.URL, 400, nil)
 		}
 		return
 	}
@@ -349,7 +369,7 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if _manager().serverHealthHandler != nil && writtenStatusCode != -1 {
-			_manager().serverHealthHandler.ReportResponseCode(r.URL, writtenStatusCode)
+			_manager().serverHealthHandler.ReportResponseCode(r.URL, writtenStatusCode, &EndPointHelper{ep})
 		}
 
 	} else {

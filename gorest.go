@@ -357,7 +357,6 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if data != nil && !ctx.overide {
 				if ep.allowGzip == 1 && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-					_manager().logger.Infof("WrritenStatus %s", writtenStatusCode)
 					w.Header().Set("Content-Encoding", "gzip")
 					w.WriteHeader(writtenStatusCode)
 					gzipWriter := gzip.NewWriter(w)

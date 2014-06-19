@@ -47,6 +47,8 @@ The rest service allows for the following tags to be specified:
     consumes        // The type of content that the service will receive on requests.
                     //  Postdata will be unmarshalled from that type. Eg. "application/json"
     realm           // The security realm this service resides in. See Security section.
+    allowGzip       // If by default all endpoints should allow their data to be returned as gzip data.
+                    //  Can be overriden at each endpoint. Default is 'false' for backwards compatibility,
 
 Each endpoint allows the following tags to be specified:
 
@@ -61,6 +63,8 @@ Each endpoint allows the following tags to be specified:
                     //  marshalling type.
     postdata        // The form/postdata type expected in the postdata. Only for POST/PUT requests.
                     //  Eg. "[]MyStruct" or "string"
+    allowGzip       // If this endpoint should allow its data to be returned as gzip data.
+                    //  If unset, it will use the service's value. Overrides service's value.
 
 Security
 

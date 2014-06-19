@@ -60,6 +60,7 @@ package gorest
 import (
 	"reflect"
 	"strings"
+	"strconv"
 )
 
 type argumentData struct {
@@ -120,6 +121,18 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 		if GetAuthorizer(tag) == nil {
 			_manager().logger.Panicf(errorString_Realm, tag)
 		}
+	}
+
+	if tag := tags.Get("gzip"); tag != "" {
+		b, err := strconv.ParseBool(tag)
+		if err != nil {
+			_manager().logger.Warnf("Service has invalid gzip value. Defaulting to off settings! %s", name)
+			md.allowGzip = false
+		} else {
+			md.allowGzip = b
+		}
+	} else {
+		md.allowGzip = false
 	}
 
 	md.template = i
@@ -197,8 +210,20 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 				} else {
 					_manager().logger.Panicf(errorString_StringMap, "postdata", ms.signiture)
 				}
-
 			}
+		}
+		if tag := tags.Get("gzip"); tag != "" {
+			b, err := strconv.ParseBool(tag)
+			if err != nil {
+				_manager().logger.Warnf("Endpoint has invalid gzip value. Defaulting to off/parent settings! %s", ms.name)
+				ms.allowGzip = 2
+			} else if b {
+				ms.allowGzip = 1
+			} else {
+				ms.allowGzip = 0
+			}
+		} else {
+			ms.allowGzip = 2
 		}
 
 		parseParams(ms)

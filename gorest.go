@@ -65,6 +65,7 @@ import (
 	"strconv"
 	"strings"
 	"log" // for the default logger
+	"compress/gzip"
 )
 
 type GoRestService interface {
@@ -103,6 +104,7 @@ type endPointStruct struct {
 	methodNumberInParent int
 	role                 string
 	overrideProducesMime string // overrides the produces mime type
+	allowGzip 		     int // 0 false, 1 true, 2 unitialized
 }
 
 type EndPointHelper struct {
@@ -124,6 +126,7 @@ type serviceMetaData struct {
 	producesMime string
 	root         string
 	realm        string
+	allowGzip    bool
 }
 
 // HealthHandler reports some overal health information about requests.
@@ -328,10 +331,8 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				{
 					if ctx.responseCode == 0 {
 						writtenStatusCode = getDefaultResponseCode(ep.requestMethod)
-						w.WriteHeader(writtenStatusCode)
 					} else {
 						if !ctx.dataHasBeenWritten {
-							w.WriteHeader(ctx.responseCode)
 							writtenStatusCode = ctx.responseCode
 						}
 					}
@@ -343,13 +344,11 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							w.Header().Set("Content-Type", mimeType)
 						}
 						writtenStatusCode = getDefaultResponseCode(ep.requestMethod)
-						w.WriteHeader(writtenStatusCode)
 					} else {
 						if !ctx.dataHasBeenWritten {
 							if !ctx.responseMimeSet {
 								w.Header().Set("Content-Type", mimeType)
 							}
-							w.WriteHeader(ctx.responseCode)
 							writtenStatusCode = ctx.responseCode
 						}
 					}
@@ -357,13 +356,26 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if data != nil && !ctx.overide {
-				io.Copy(w, data)
+				if ep.allowGzip == 1 && strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+					_manager().logger.Infof("WrritenStatus %s", writtenStatusCode)
+					w.Header().Set("Content-Encoding", "gzip")
+					w.WriteHeader(writtenStatusCode)
+					gzipWriter := gzip.NewWriter(w)
+					defer gzipWriter.Close()
+					io.Copy(gzipWriter, data)
+				} else {
+					w.WriteHeader(writtenStatusCode)
+					io.Copy(w, data)
+				}
+			} else {
+				w.WriteHeader(writtenStatusCode)
 			}
 
 		} else {
 			if _manager().logger != nil {
 				_manager().logger.Errorf("Problem with request. Error: %s %d %s; Request: %v", r.Method, state.httpCode, state.reason, r.URL.RequestURI())
 			}
+			writtenStatusCode = state.httpCode
 			w.WriteHeader(state.httpCode)
 			w.Write([]byte(state.reason))
 		}

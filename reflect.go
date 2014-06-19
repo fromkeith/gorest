@@ -95,7 +95,7 @@ func registerService(root string, h interface{}) {
 			tFullName := _manager().addType(t.PkgPath()+"/"+t.Name(), meta)
 			for i := 0; i < t.NumField(); i++ {
 				f := t.Field(i)
-				mapFieldsToMethods(t, f, tFullName, meta.root)
+				mapFieldsToMethods(t, f, tFullName, meta)
 			}
 		}
 		return
@@ -104,13 +104,21 @@ func registerService(root string, h interface{}) {
 	panic(ERROR_INVALID_INTERFACE)
 }
 
-func mapFieldsToMethods(t reflect.Type, f reflect.StructField, typeFullName string, serviceRoot string) {
+func mapFieldsToMethods(t reflect.Type, f reflect.StructField, typeFullName string, serviceRoot serviceMetaData) {
 
 	if f.Name != "RestService" && f.Type.Name() == "EndPoint" { //TODO: Proper type checking, not by name
 		temp := strings.Join(strings.Fields(string(f.Tag)), " ")
-		ep := makeEndPointStruct(reflect.StructTag(temp), serviceRoot)
+		ep := makeEndPointStruct(reflect.StructTag(temp), serviceRoot.root)
 		ep.parentTypeName = typeFullName
 		ep.name = f.Name
+		// override the endpoint with our default value for gzip
+		if ep.allowGzip == 2 {
+			if !serviceRoot.allowGzip {
+				ep.allowGzip = 0
+			} else {
+				ep.allowGzip = 1
+			}
+		}
 
 		var method reflect.Method
 		methodName := strings.ToUpper(f.Name[:1]) + f.Name[1:]

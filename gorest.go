@@ -164,6 +164,9 @@ type manager struct {
 
 type defaultLogger struct {}
 
+func (d defaultLogger) Tracef(fmt string, args ... interface{}) {
+
+}
 
 func (d defaultLogger) Infof(fmt string, args ... interface{}) {
 	log.Printf(fmt + "\n", args...)

@@ -140,6 +140,7 @@ type HealthHandler interface {
 // A simple interface to wrap a basic leveled logger.
 // The format strings to do not have newlines on them.
 type SimpleLogger interface {
+	Tracef(fmt string, args ... interface{})
 	Infof(fmt string, args ... interface{})
 	Warnf(fmt string, args ... interface{})
 	Errorf(fmt string, args ... interface{})
@@ -279,6 +280,8 @@ func RegisterServiceOnPath(root string, h interface{}) {
 func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	url_, err := url.QueryUnescape(r.URL.RequestURI())
+
+	_manager().logger.Tracef("ServeHttp [%s] %s", r.Method, r.URL.String())
 
 	defer func() {
 		if rec := recover(); rec != nil {

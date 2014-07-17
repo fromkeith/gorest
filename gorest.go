@@ -346,19 +346,17 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			case GET:
 				{
 					if ctx.responseCode == 0 {
-						if !ctx.responseMimeSet {
-							w.Header().Set("Content-Type", mimeType)
-						}
 						writtenStatusCode = getDefaultResponseCode(ep.requestMethod)
 					} else {
 						if !ctx.dataHasBeenWritten {
-							if !ctx.responseMimeSet {
-								w.Header().Set("Content-Type", mimeType)
-							}
 							writtenStatusCode = ctx.responseCode
 						}
 					}
 				}
+			}
+
+			if !ctx.responseMimeSet {
+				w.Header().Set("Content-Type", mimeType)
 			}
 
 			if data != nil && !ctx.overide {

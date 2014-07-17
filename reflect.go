@@ -245,7 +245,10 @@ func isLegalForRequestType(methType reflect.Type, ep endPointStruct) (cool bool)
 				return
 			}
 			if ep.outputType != "" {
-
+				if methType.NumOut() == 0 {
+					cool = false
+					return
+				}
 				methVal := methType.Out(0)
 				if ep.outputTypeIsArray {
 					if methVal.Kind() == reflect.Slice {

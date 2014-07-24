@@ -355,7 +355,7 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			if !ctx.responseMimeSet {
+			if !ctx.responseMimeSet &&  data != nil {
 				w.Header().Set("Content-Type", mimeType)
 			}
 

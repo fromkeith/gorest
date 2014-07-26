@@ -333,21 +333,9 @@ func getVarTypePair(part string, sign string) (parName string, typeName string) 
 	parName = temp[:ind]
 	typeName = temp[ind+1:]
 
-	if !isAllowedParamType(typeName) {
-		_manager().logger.Panicf("Type %s is not allowed for Path/Query-parameters in REST path: %s", typeName, sign)
-	}
-
 	return
 }
 
-func isAllowedParamType(typeName string) bool {
-	for _, s := range aLLOWED_PAR_TYPES {
-		if s == strings.ToLower(typeName) {
-			return true
-		}
-	}
-	return false
-}
 
 func getEndPointByUrl(method string, url string) (endPointStruct, map[string]string, map[string]string, string, bool) {
 	//println("Getting:",url)

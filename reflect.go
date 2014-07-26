@@ -480,6 +480,7 @@ func makeArg(data string, template reflect.Type, mime string) (reflect.Value, re
 	/*else{
 		log.Println("Data sent: ",data)
 	}*/
+	//_manager().logger.Infof("Data sent: %s. Mime: %s", data, mime)
 
 	buf := bytes.NewBufferString(data)
 	err := BytesToInterface(buf, i, mime)

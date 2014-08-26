@@ -47,6 +47,9 @@ func InterfaceToBytes(i interface{}, mime string) (io.ReadCloser, error) {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
+	if v.IsNil() {
+		return nil, errors.New("Type is nil!")
+	}
 	switch v.Kind() {
 	case reflect.Bool:
 		x := v.Bool()
@@ -65,6 +68,8 @@ func InterfaceToBytes(i interface{}, mime string) (io.ReadCloser, error) {
 		return ioutil.NopCloser(bytes.NewBuffer([]byte(strconv.FormatUint(v.Uint(), 10)))), nil
 	case reflect.Float32, reflect.Float64:
 		return ioutil.NopCloser(bytes.NewBuffer([]byte(strconv.FormatFloat(v.Float(), 'g', -1, v.Type().Bits())))), nil
+	case reflect.Invalid:
+		return nil, errors.New("Type is invalid!")
 	default:
 		return nil, errors.New("Type " + v.Type().Name() + " is not handled by GoRest.")
 	}

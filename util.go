@@ -47,9 +47,6 @@ func InterfaceToBytes(i interface{}, mime string) (io.ReadCloser, error) {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	if v.IsNil() {
-		return nil, errors.New("Type is nil!")
-	}
 	switch v.Kind() {
 	case reflect.Bool:
 		x := v.Bool()

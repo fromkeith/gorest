@@ -59,6 +59,8 @@ Each endpoint allows the following tags to be specified:
                     //  on GET requests. Must be specified if the function returns something.
                     //  Eg. "[]MyStruct" or "string"
     role            // The security role of this endpoint inside the service. See Security section.
+    consumes        // Overrides the 'consumes' on the Service. Allows an endpoint to specify its own
+                    //  marshalling type.
     produces        // Overrides the 'produces' on the Service. Allows an endpoint to specify its own
                     //  marshalling type.
     postdata        // The form/postdata type expected in the postdata. Only for POST/PUT requests.

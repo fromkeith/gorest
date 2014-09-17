@@ -31,6 +31,8 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"encoding/xml"
+	"github.com/ajg/form"
+	"strings"
 )
 
 //A Marshaller represents the two functions used to marshal/unmarshal interfaces back and forth.
@@ -92,4 +94,18 @@ func xmlMarshal(v interface{}) (io.ReadCloser, error) {
 }
 func xmlUnMarshal(data []byte, v interface{}) error {
 	return xml.Unmarshal(data, v)
+}
+
+//application/x-www-form-urlencoded
+func NewFormMarshaller() * Marshaller {
+	m := Marshaller{formMarshal, formUnMarshal}
+	return &m
+}
+func formMarshal(v interface{}) (io.ReadCloser, error) {
+	s, err := form.EncodeToString(v)
+	return ioutil.NopCloser(strings.NewReader(s)), err
+}
+func formUnMarshal(data []byte, v interface{}) error {
+	err := form.DecodeString(v, string(data))
+	return err
 }

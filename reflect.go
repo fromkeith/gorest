@@ -367,6 +367,10 @@ Run:
 	arrArgs := make([]reflect.Value, 0)
 
 	targetMethod := servVal.Type().Method(ep.methodNumberInParent)
+	mime := servMeta.consumesMime
+	if ep.overrideConsumesMime != "" {
+		mime = ep.overrideConsumesMime
+	}
 	//For POST and PUT, make and add the first "postdata" argument to the argument list
 	if ep.requestMethod == POST || ep.requestMethod == PUT {
 
@@ -378,7 +382,7 @@ Run:
 
 		//println("This is the body of the post:",body)
 
-		if v, state := makeArg(body, targetMethod.Type.In(1), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+		if v, state := makeArg(body, targetMethod.Type.In(1), mime); state.httpCode != http.StatusBadRequest {
 			arrArgs = append(arrArgs, v)
 		} else {
 			return nil, state
@@ -396,7 +400,7 @@ Run:
 			for ij := 0; ij < len(context.args); ij++ {
 				dat := context.args[string(ij)]
 
-				if v, state := makeArg(dat, targetMethod.Type.In(startIndex).Elem(), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+				if v, state := makeArg(dat, targetMethod.Type.In(startIndex).Elem(), mime); state.httpCode != http.StatusBadRequest {
 					varSliceArgs = reflect.Append(varSliceArgs, v)
 				} else {
 					return nil, state
@@ -412,7 +416,7 @@ Run:
 					dat = str
 				}
 
-				if v, state := makeArg(dat, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+				if v, state := makeArg(dat, targetMethod.Type.In(startIndex), mime); state.httpCode != http.StatusBadRequest {
 					arrArgs = append(arrArgs, v)
 				} else {
 					return nil, state
@@ -430,7 +434,7 @@ Run:
 				dat = str
 			}
 
-			if v, state := makeArg(dat, targetMethod.Type.In(startIndex), servMeta.consumesMime); state.httpCode != http.StatusBadRequest {
+			if v, state := makeArg(dat, targetMethod.Type.In(startIndex), mime); state.httpCode != http.StatusBadRequest {
 				arrArgs = append(arrArgs, v)
 			} else {
 				return nil, state

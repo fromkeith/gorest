@@ -192,8 +192,18 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 			ms.role = tag
 		}
 
+		if tag := tags.Get("consumes"); tag != "" {
+			ms.overrideConsumesMime = tag
+			if GetMarshallerByMime(tag) == nil {
+				_manager().logger.Panicf(errorString_MarshalMimeType, tag)
+			}
+		}
+
 		if tag := tags.Get("produces"); tag != "" {
 			ms.overrideProducesMime = tag
+			if GetMarshallerByMime(tag) == nil {
+				_manager().logger.Panicf(errorString_MarshalMimeType, tag)
+			}
 		}
 
 		if tag := tags.Get("postdata"); tag != "" {

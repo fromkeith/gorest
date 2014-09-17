@@ -104,6 +104,7 @@ type endPointStruct struct {
 	methodNumberInParent int
 	role                 string
 	overrideProducesMime string // overrides the produces mime type
+	overrideConsumesMime string // overrides the produces mime type
 	allowGzip 		     int // 0 false, 1 true, 2 unitialized
 }
 

@@ -91,11 +91,11 @@ func registerService(root string, h interface{}) {
 	if t.Kind() == reflect.Struct {
 		if field, found := t.FieldByName("RestService"); found {
 			temp := strings.Join(strings.Fields(string(field.Tag)), " ")
-			meta := prepServiceMetaData(root, reflect.StructTag(temp), h, t.Name())
+			meta := prepServiceMetaData(_manager(), root, reflect.StructTag(temp), h, t.Name())
 			tFullName := _manager().addType(t.PkgPath()+"/"+t.Name(), meta)
 			for i := 0; i < t.NumField(); i++ {
 				f := t.Field(i)
-				mapFieldsToMethods(t, f, tFullName, meta)
+				mapFieldsToMethods(_manager(), t, f, tFullName, meta)
 			}
 		}
 		return
@@ -104,11 +104,11 @@ func registerService(root string, h interface{}) {
 	panic(ERROR_INVALID_INTERFACE)
 }
 
-func mapFieldsToMethods(t reflect.Type, f reflect.StructField, typeFullName string, serviceRoot serviceMetaData) {
+func mapFieldsToMethods(manager *manager, t reflect.Type, f reflect.StructField, typeFullName string, serviceRoot serviceMetaData) {
 
 	if f.Name != "RestService" && f.Type.Name() == "EndPoint" { //TODO: Proper type checking, not by name
 		temp := strings.Join(strings.Fields(string(f.Tag)), " ")
-		ep := makeEndPointStruct(reflect.StructTag(temp), serviceRoot.root)
+		ep := makeEndPointStruct(manager, reflect.StructTag(temp), serviceRoot.root)
 		ep.parentTypeName = typeFullName
 		ep.name = f.Name
 		// override the endpoint with our default value for gzip
@@ -137,15 +137,15 @@ func mapFieldsToMethods(t reflect.Type, f reflect.StructField, typeFullName stri
 
 		{ //Panic Checks
 			if !methFound {
-				_manager().logger.Panicf("Method name not found. %s", panicMethNotFound(methFound, ep, t, f, methodName, nil))
+				manager.logger.Panicf("Method name not found. %s", panicMethNotFound(methFound, ep, t, f, methodName, nil))
 			}
 			if !isLegalForRequestType(method.Type, ep) {
-				_manager().logger.Panicf("Parameter list not matching. %s", panicMethNotFound(methFound, ep, t, f, methodName, &method.Type))
+				manager.logger.Panicf("Parameter list not matching. %s", panicMethNotFound(methFound, ep, t, f, methodName, &method.Type))
 			}
 		}
 		ep.methodNumberInParent = methodNumberInParent
-		_manager().addEndPoint(ep)
-		_manager().logger.Infof("Registered service: %s endpoint: %s %s", t.Name(), ep.requestMethod, ep.signiture)
+		manager.addEndPoint(ep)
+		manager.logger.Infof("Registered service: %s endpoint: %s %s", t.Name(), ep.requestMethod, ep.signiture)
 	}
 }
 

@@ -88,7 +88,7 @@ const (
 	errorString_UniqueRoot = "Variable length endpoints can only be mounted on a unique root. Root already used: %s <> %s"
 )
 
-func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, name string) serviceMetaData {
+func prepServiceMetaData(manager *manager, root string, tags reflect.StructTag, i interface{}, name string) serviceMetaData {
 	md := new(serviceMetaData)
 
 	if tag := tags.Get("root"); tag != "" {
@@ -97,11 +97,11 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if root != "" {
 		md.root = root + md.root
 	}
-	_manager().logger.Infof("All EndPoints for service [%s] , registered under root path: %s", name, md.root)
+	manager.logger.Infof("All EndPoints for service [%s] , registered under root path: %s", name, md.root)
 	if tag := tags.Get("consumes"); tag != "" {
 		md.consumesMime = tag
 		if GetMarshallerByMime(tag) == nil {
-			_manager().logger.Panicf(errorString_MarshalMimeType, tag)
+			manager.logger.Panicf(errorString_MarshalMimeType, tag)
 		}
 
 	} else {
@@ -110,7 +110,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if tag := tags.Get("produces"); tag != "" {
 		md.producesMime = tag
 		if GetMarshallerByMime(tag) == nil {
-			_manager().logger.Panicf(errorString_MarshalMimeType, tag)
+			manager.logger.Panicf(errorString_MarshalMimeType, tag)
 		}
 	} else {
 		md.producesMime = Application_Json //Default
@@ -119,14 +119,14 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	if tag := tags.Get("realm"); tag != "" {
 		md.realm = tag
 		if GetAuthorizer(tag) == nil {
-			_manager().logger.Panicf(errorString_Realm, tag)
+			manager.logger.Panicf(errorString_Realm, tag)
 		}
 	}
 
 	if tag := tags.Get("gzip"); tag != "" {
 		b, err := strconv.ParseBool(tag)
 		if err != nil {
-			_manager().logger.Warnf("Service has invalid gzip value. Defaulting to off settings! %s", name)
+			manager.logger.Warnf("Service has invalid gzip value. Defaulting to off settings! %s", name)
 			md.allowGzip = false
 		} else {
 			md.allowGzip = b
@@ -139,7 +139,7 @@ func prepServiceMetaData(root string, tags reflect.StructTag, i interface{}, nam
 	return *md
 }
 
-func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStruct {
+func makeEndPointStruct(manager *manager, tags reflect.StructTag, serviceRoot string) endPointStruct {
 
 	ms := new(endPointStruct)
 
@@ -157,14 +157,14 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 		} else if tag == "OPTIONS" {
 			ms.requestMethod = OPTIONS
 		} else {
-			_manager().logger.Panicf(errorString_UnknownMethod, tag)
+			manager.logger.Panicf(errorString_UnknownMethod, tag)
 		}
 
 		if tag := tags.Get("path"); tag != "" {
 			serviceRoot = strings.TrimRight(serviceRoot, "/")
 			ms.signiture = serviceRoot + "/" + strings.Trim(tag, "/")
 		} else {
-			_manager().logger.Panicf(errorString_EndpointDecl)
+			manager.logger.Panicf(errorString_EndpointDecl)
 		}
 
 		if tag := tags.Get("output"); tag != "" {
@@ -179,7 +179,7 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 					ms.outputTypeIsMap = true
 					ms.outputType = ms.outputType[11:]
 				} else {
-					_manager().logger.Panicf(errorString_StringMap, "output", ms.signiture)
+					manager.logger.Panicf(errorString_StringMap, "output", ms.signiture)
 				}
 
 			}
@@ -195,14 +195,14 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 		if tag := tags.Get("consumes"); tag != "" {
 			ms.overrideConsumesMime = tag
 			if GetMarshallerByMime(tag) == nil {
-				_manager().logger.Panicf(errorString_MarshalMimeType, tag)
+				manager.logger.Panicf(errorString_MarshalMimeType, tag)
 			}
 		}
 
 		if tag := tags.Get("produces"); tag != "" {
 			ms.overrideProducesMime = tag
 			if GetMarshallerByMime(tag) == nil {
-				_manager().logger.Panicf(errorString_MarshalMimeType, tag)
+				manager.logger.Panicf(errorString_MarshalMimeType, tag)
 			}
 		}
 
@@ -218,14 +218,14 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 					ms.postdataTypeIsMap = true
 					ms.postdataType = ms.postdataType[11:]
 				} else {
-					_manager().logger.Panicf(errorString_StringMap, "postdata", ms.signiture)
+					manager.logger.Panicf(errorString_StringMap, "postdata", ms.signiture)
 				}
 			}
 		}
 		if tag := tags.Get("gzip"); tag != "" {
 			b, err := strconv.ParseBool(tag)
 			if err != nil {
-				_manager().logger.Warnf("Endpoint has invalid gzip value. Defaulting to off/parent settings! %s", ms.name)
+				manager.logger.Warnf("Endpoint has invalid gzip value. Defaulting to off/parent settings! %s", ms.name)
 				ms.allowGzip = 2
 			} else if b {
 				ms.allowGzip = 1
@@ -236,15 +236,15 @@ func makeEndPointStruct(tags reflect.StructTag, serviceRoot string) endPointStru
 			ms.allowGzip = 2
 		}
 
-		parseParams(ms)
+		parseParams(manager, ms)
 		return *ms
 	}
 
-	_manager().logger.Panicf("Endpoint declaration must have the tags 'method' and 'path' ")
+	manager.logger.Panicf("Endpoint declaration must have the tags 'method' and 'path' ")
 	return *ms //Should not get here
 
 }
-func parseParams(e *endPointStruct) {
+func parseParams(manager *manager, e *endPointStruct) {
 	e.signiture = strings.Trim(e.signiture, "/")
 	e.params = make([]param, 0)
 	e.queryParams = make([]param, 0)
@@ -268,13 +268,13 @@ func parseParams(e *endPointStruct) {
 
 				for _, par := range e.queryParams {
 					if par.name == parName {
-						_manager().logger.Panicf(errorString_DuplicateQueryParam, parName, e.signiture)
+						manager.logger.Panicf(errorString_DuplicateQueryParam, parName, e.signiture)
 					}
 				}
 				//e.queryParams[len(e.queryParams)] = param{pos, parName, typeName}
 				e.queryParams = append(e.queryParams, param{pos, parName, typeName})
 			} else {
-				_manager().logger.Panicf(errorString_QueryParamConfig, e.signiture)
+				manager.logger.Panicf(errorString_QueryParamConfig, e.signiture)
 			}
 		}
 	}
@@ -302,7 +302,7 @@ func parseParams(e *endPointStruct) {
 			}
 			for _, par := range e.params {
 				if par.name == parName {
-					_manager().logger.Panicf(errorString_DuplicateQueryParam, parName, e.signiture)
+					manager.logger.Panicf(errorString_DuplicateQueryParam, parName, e.signiture)
 				}
 			}
 
@@ -317,18 +317,18 @@ func parseParams(e *endPointStruct) {
 	e.root = strings.TrimRight(e.root, "/")
 
 	if e.isVariableLength && e.paramLen > 1 {
-		_manager().logger.Panicf(errorString_VariableLength, pathPart)
+		manager.logger.Panicf(errorString_VariableLength, pathPart)
 	}
 
-	for key, ep := range _manager().endpoints {
+	for key, ep := range manager.endpoints {
 		if ep.root == e.root && ep.signitureLen == e.signitureLen && reflect.DeepEqual(ep.nonParamPathPart, e.nonParamPathPart) && ep.requestMethod == e.requestMethod {
-			_manager().logger.Panicf(errorString_RegisterSameMethod, ep.requestMethod, e.signiture, ep.signiture)
+			manager.logger.Panicf(errorString_RegisterSameMethod, ep.requestMethod, e.signiture, ep.signiture)
 		}
 		if ep.requestMethod == e.requestMethod && pathPart == key {
-			_manager().logger.Panicf("Endpoint already registered: %s", pathPart)
+			manager.logger.Panicf("Endpoint already registered: %s", pathPart)
 		}
 		if e.isVariableLength && (strings.Index(ep.root+"/", e.root+"/") == 0 || strings.Index(e.root+"/", ep.root+"/") == 0) && ep.requestMethod == e.requestMethod {
-			_manager().logger.Panicf(errorString_UniqueRoot, ep.root, e.root)
+			manager.logger.Panicf(errorString_UniqueRoot, ep.root, e.root)
 		}
 	}
 }

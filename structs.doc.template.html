@@ -1,0 +1,50 @@
+{{define "gorest.structs"}}
+<html>
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <script>
+            function toggleFold(what) {
+                if ($("#" + what).is(":visible")) {
+                    $("#" + what).hide();
+                } else {
+                    $("#" + what).show();
+                }
+                return false;
+            }
+        </script>
+    </head>
+    <body>
+        <div class="jumbotron">
+            <h1>Data Types</h1>
+        </div>
+        <div class="container">
+            <h3>Data Types</h3>
+            <ul>
+                {{range $struc := .Structs}}
+                <li>
+                    <a href="#{{$struc.Name}}">{{$struc.Name}}</a>
+                </li>
+                {{end}}
+            </ul>
+        </div>
+        {{range $struc := .Structs}}
+        <div class="container">
+            <h3 id="{{$struc.Name}}">{{$struc.Name}}</h3>
+            <pre class="well">{{$struc.Doc}}</pre>
+            <table class="table">
+                {{range $field := $struc.Fields}}
+                <tr>
+                    <td>{{$field.Name}}</td>
+                    <td>{{$field.Type}}</td>
+                    <td>{{$field.Doc}}</td>
+                </tr>
+                {{end}}
+            </table>
+        </div>
+        {{end}}
+    </body>
+</html>
+{{end}}

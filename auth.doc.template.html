@@ -1,0 +1,41 @@
+{{define "gorest.auths"}}
+<html>
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <script>
+            function toggleFold(what) {
+                if ($("#" + what).is(":visible")) {
+                    $("#" + what).hide();
+                } else {
+                    $("#" + what).show();
+                }
+                return false;
+            }
+        </script>
+    </head>
+    <body>
+        <div class="jumbotron">
+            <h1>Authorizations</h1>
+        </div>
+        <div class="container">
+            <h3>Authorizers</h3>
+            <ul>
+                {{range $auth := .Auths}}
+                <li>
+                    <a href="#{{$auth.Realm}}">{{$auth.Realm}}</a>
+                </li>
+                {{end}}
+            </ul>
+        </div>
+        {{range $auth := .Auths}}
+        <div class="container">
+            <h3 id="{{$auth.Realm}}">{{$auth.Realm}}</h3>
+            <pre class="well">{{$auth.Doc}}</pre>
+        </div>
+        {{end}}
+    </body>
+</html>
+{{end}}

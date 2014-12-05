@@ -41,7 +41,7 @@ func RegisterRealmAuthorizer(realm string,auth Authorizer){
 	if authorizers ==nil{
 		authorizers = make(map[string]Authorizer,0)
 	}
-	
+
 	if _,found := authorizers[realm]; !found{
 		authorizers[realm] = auth
 	}

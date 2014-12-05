@@ -1,0 +1,134 @@
+{{define "gorest.service"}}
+<html>
+    <head>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap-theme.min.css">
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+        <script>
+            function toggleFold(what) {
+                if ($("#" + what).is(":visible")) {
+                    $("#" + what).hide();
+                } else {
+                    $("#" + what).show();
+                }
+                return false;
+            }
+        </script>
+    </head>
+    <body>
+        <div class="jumbotron">
+            <h1>{{.Service.Name}}</h1>
+            <pre class="well">{{.Service.Doc}}</pre>
+            {{if .Service.Realm}}
+            <table class="table" style="width:45%">
+                <tr>
+                    <td>Auth Realm</td>
+                    <td>
+                        <a href="auths.html#{{.Service.Realm}}">{{.Service.Realm}}</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Root</td>
+                    <td>{{.Service.Root}}</td>
+                </tr>
+            </table>
+            {{end}}
+        </div>
+        <div class="container">
+            <h3>Endpoints</h3>
+            <ul>
+                {{range $end := .Endpoints}}
+                <li>
+                    <a href="#{{$end.Name}}">{{$end.Signature}}</a>
+                </li>
+                {{end}}
+            </ul>
+        </div>
+        {{range $end := .Endpoints}}
+        <div class="container">
+            <h3 id="{{$end.Name}}">{{$end.Signature}}</h3>
+            <h4 alt="{{$end.MethodDefaultReturn}}" title="{{$end.MethodDefaultReturn}}">
+                {{if eq $end.RequestMethod "GET"}}
+                <span class="glyphicon glyphicon-arrow-left"></span>
+                {{else if eq "POST" $end.RequestMethod}}
+                <span class="glyphicon glyphicon-arrow-right"></span>
+                {{else if eq $end.RequestMethod "PUT"}}
+                <span class="glyphicon glyphicon-arrow-right"></span>
+                {{else if eq $end.RequestMethod "DELETE"}}
+                <span class="glyphicon glyphicon-arrow-remove"></span>
+                {{else if eq $end.RequestMethod "HEAD"}}
+                <span class="glyphicon glyphicon-arrow-list"></span>
+                {{else if eq $end.RequestMethod "OPTIONS"}}
+                <span class="glyphicon glyphicon-th"></span>
+                {{end}}
+                {{$end.RequestMethod}}
+            </h4>
+            <pre class="well">{{$end.Doc}}</pre>
+            <table class="table">
+                <tr>
+                    <td>Consumes</td>
+                    <td>{{$end.ConsumesMime}}</td>
+                </tr>
+                <tr>
+                    <td>Produces</td>
+                    <td>{{$end.ProducesMime}}</td>
+                </tr>
+                {{if $end.PostData}}
+                <tr>
+                    <td>Postdata</td>
+                    <td>
+                        <a href="#" onclick="return toggleFold('{{$end.Name}}-postdata');">
+                        {{if $end.PostData.IsArray}}
+                            []
+                        {{end}}
+                        {{$end.PostData.Name}}
+                        </a>
+                        |
+                        <a href="datatypes.html#{{$end.PostData.Name}}">More Info</a>
+                        <table class="table" id="{{$end.Name}}-postdata" style="display:none">
+                            {{range $field := $end.PostData.Fields}}
+                            <tr>
+                                <td>{{$field.Name}}</td>
+                                <td>{{$field.Type}}</td>
+                            </tr>
+                            {{end}}
+                        </table>
+                    </td>
+                </tr>
+                {{end}}
+                {{if $end.Output}}
+                <tr>
+                    <td>Outputs</td>
+                    <td>
+                        <a href="#" onclick="return toggleFold('{{$end.Name}}-output');">
+                        {{if $end.Output.IsArray}}
+                            []
+                        {{end}}
+                        {{$end.Output.Name}}
+                        </a>
+                        |
+                        <a href="datatypes.html#{{$end.Output.Name}}">More Info</a>
+                        <table class="table" id="{{$end.Name}}-output" style="display:none">
+                            {{range $field := $end.Output.Fields}}
+                            <tr>
+                                <td>{{$field.Name}}</td>
+                                <td>{{$field.Type}}</td>
+                            </tr>
+                            {{end}}
+                        </table>
+                    </td>
+                </tr>
+                {{end}}
+                {{if $end.Role}}
+                <tr>
+                    <td>Auth Role</td>
+                    <td>{{$end.Role}}</td>
+                </tr>
+                {{end}}
+            </table>
+        </div>
+        {{end}}
+    </body>
+</html>
+{{end}}

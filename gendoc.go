@@ -58,8 +58,8 @@ func docImporter(imports map[string]*ast.Object, path string) (*ast.Object, erro
 }
 
 
-func extractComments(packageLocation string) map[string]string {
-    bpkg, err := build.Default.Import("path/to/test/package", ".", 0)
+func extractComments(packageImportPath string) map[string]string {
+    bpkg, err := build.Default.Import(packageImportPath, ".", 0)
     if err != nil {
         log.Fatal(err)
     }
@@ -77,20 +77,19 @@ func extractComments(packageLocation string) map[string]string {
         files[fname] = file
     }
 
-    log.Printf("GoFiles: %v\n", files["orders.putAlbumOrder.go"].Comments[0].End())
     result := make(map[string]string)
 
     pkg, _ := ast.NewPackage(fset, files, docImporter, nil)
 
     dpkg := doc.New(pkg, bpkg.ImportPath, 0)
     for i := range dpkg.Types {
+        result[dpkg.Types[i].Name] = dpkg.Types[i].Doc
         for j := range dpkg.Types[i].Methods {
-            result[strings.ToLower(dpkg.Types[i].Name + "." + dpkg.Types[i].Methods[j].Name)] = dpkg.Types[i].Methods[j].Doc
+            result[dpkg.Types[i].Name + "." + dpkg.Types[i].Methods[j].Name] = dpkg.Types[i].Methods[j].Doc
         }
     }
     return result
 }
-
 
 
 /*
@@ -99,7 +98,7 @@ func extractComments(packageLocation string) map[string]string {
     outputTemplate - the html template to use. See doc.template.html
     returns the string template
 */
-func DocumentService(h interface{}, root string, outputTemplate *template.Template, sourceFileLocation string) string {
+func DocumentService(h interface{}, root string, outputTemplate *template.Template, packageImportPath string) string {
     if _, ok := h.(GoRestService); !ok {
         panic(ERROR_INVALID_INTERFACE)
     }
@@ -128,12 +127,15 @@ func DocumentService(h interface{}, root string, outputTemplate *template.Templa
             if len(docManager.serviceTypes) != 1 {
                 panic("Only expected 1 service")
             }
-            comments := extractComments(sourceFileLocation)
+            comments := extractComments(packageImportPath)
 
 
             service := docManager.serviceTypes[tFullName]
             var doc docOutput
-            doc.ServiceName = tFullName
+            doc.Service.FullName = tFullName
+            doc.Service.Name = t.Name()
+            doc.Service.Doc = comments[t.Name()]
+            doc.Service.Realm = meta.realm
             doc.Endpoints = make([]docEndpoint, 0, len(docManager.endpoints))
             for _, v := range docManager.endpoints {
                 // reflect the service so we can get the types in the endpoint
@@ -157,11 +159,14 @@ func DocumentService(h interface{}, root string, outputTemplate *template.Templa
                     prodMime = v.overrideProducesMime
                 }
 
-                methodDoc, _ := comments[strings.ToLower(t.Name() + "." + v.name)]
+                name := strings.ToUpper(v.name[0:1]) + v.name[1:]
+                methodDoc, _ := comments[t.Name() + "." + name]
+                log.Println("Find:", t.Name() + "." + name)
 
                 doc.Endpoints = append(doc.Endpoints, docEndpoint{
                     Name: v.name,
                     RequestMethod: v.requestMethod,
+                    MethodDefaultReturn: getDefaultResponseCode(v.requestMethod),
                     Signature: v.signiture,
                     Root: v.root,
                     Params: v.params,
@@ -179,8 +184,8 @@ func DocumentService(h interface{}, root string, outputTemplate *template.Templa
                     ParentTypeName: v.parentTypeName,
                     MethodNumberInParent: v.methodNumberInParent,
                     Role: v.role,
-                    OverrideProducesMime: prodMime,
-                    OverrideConsumesMime: consumeMime,
+                    ProducesMime: prodMime,
+                    ConsumesMime: consumeMime,
                     AllowGzip: v.allowGzip,
                     PostData: postDataDescription,
                     Output: outputDescription,
@@ -189,7 +194,10 @@ func DocumentService(h interface{}, root string, outputTemplate *template.Templa
             }
 
             buf := bytes.Buffer{}
-            outputTemplate.ExecuteTemplate(&buf, "gorest.service", doc)
+            err := outputTemplate.ExecuteTemplate(&buf, "gorest.service", doc)
+            if err != nil {
+                panic(err)
+            }
             return buf.String()
         }
         return ""
@@ -212,6 +220,7 @@ func docDescribeStruct(dataType reflect.Type) *docStruct {
             Type: inst.Field(i).Type.String(),
         }
     }
+    desc.Name = dataType.Name()
     return &desc
 }
 
@@ -223,38 +232,47 @@ type docField struct {
 type docStruct struct {
     Fields              []docField
     IsArray             bool
+    Name                string
+}
+
+type docService struct {
+    Name            string
+    FullName        string
+    Realm           string
+    Doc             string
 }
 
 type docOutput struct {
-    ServiceName         string
+    Service             docService
     Endpoints           []docEndpoint
 }
 
 type docEndpoint struct {
-    Name                 string
-    RequestMethod        string
-    Signature            string
-    MuxRoot              string
-    Root                 string
-    NonParamPathPart     map[int]string
-    Params               []param //path parameter name and position
-    QueryParams          []param
-    SignitureLen         int
-    ParamLen             int
-    InputMime            string
-    OutputType           string
-    OutputTypeIsArray    bool
-    OutputTypeIsMap      bool
-    PostdataType         string
-    PostdataTypeIsArray  bool
-    PostdataTypeIsMap    bool
-    IsVariableLength     bool
-    ParentTypeName       string
-    MethodNumberInParent int
-    Role                 string
-    OverrideProducesMime string // overrides the produces mime type
-    OverrideConsumesMime string // overrides the produces mime type
-    AllowGzip            int // 0 false, 1 true, 2 unitialized
+    Name                    string
+    RequestMethod           string
+    MethodDefaultReturn     int
+    Signature               string
+    MuxRoot                 string
+    Root                    string
+    NonParamPathPart        map[int]string
+    Params                  []param //path parameter name and position
+    QueryParams             []param
+    SignitureLen            int
+    ParamLen                int
+    InputMime               string
+    OutputType              string
+    OutputTypeIsArray       bool
+    OutputTypeIsMap         bool
+    PostdataType            string
+    PostdataTypeIsArray     bool
+    PostdataTypeIsMap       bool
+    IsVariableLength        bool
+    ParentTypeName          string
+    MethodNumberInParent    int
+    Role                    string
+    ProducesMime            string // overrides the produces mime type
+    ConsumesMime            string // overrides the produces mime type
+    AllowGzip               int // 0 false, 1 true, 2 unitialized
     PostData                *docStruct
     Output                  *docStruct
     Doc                     string

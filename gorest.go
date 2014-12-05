@@ -81,6 +81,15 @@ const (
 	OPTIONS = "OPTIONS"
 )
 
+var (
+	defaultGet 	= 200
+	defaultPost = 200
+	defaultPut 	= 202
+	defaultDelete = 200
+	defaultHead = 200
+	defaultOptions = 200
+)
+
 type endPointStruct struct {
 	name                 string
 	requestMethod        string
@@ -476,20 +485,37 @@ func Handle() manager {
 	return *restManager
 }
 
+func SetDefaultResponseCode(method string, val int) {
+	switch method {
+	case GET:
+		defaultGet = val
+	case POST:
+		defaultPost = val
+	case PUT:
+		defaultPut = val
+	case DELETE:
+		defaultDelete = val
+	case HEAD:
+		defaultHead = val
+	case OPTIONS:
+		defaultOptions = val
+	}
+}
+
 func getDefaultResponseCode(method string) int {
 	switch method {
-	case GET, PUT, DELETE:
-		{
-			return 200
-		}
+	case GET:
+		return defaultGet
 	case POST:
-		{
-			return 202
-		}
-	default:
-		{
-			return 200
-		}
+		return defaultPost
+	case PUT:
+		return defaultPut
+	case DELETE:
+		return defaultDelete
+	case HEAD:
+		return defaultHead
+	case OPTIONS:
+		return defaultOptions
 	}
 
 	return 200

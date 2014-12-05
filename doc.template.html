@@ -2,7 +2,8 @@
 <html>
     <head></head>
     <body>
-        <h1>{{.ServiceName}}</h1>
+        <h1>{{.Service.Name}}</h1>
+        <p>{{.Service.Doc}}</p>
         <table>
             <tr>
                 <th>Method</th>
@@ -51,8 +52,8 @@
                 <td>{{$end.ParentTypeName}}</td>
                 <td>{{$end.MethodNumberInParent}}</td>
                 <td>{{$end.Role}}</td>
-                <td>{{$end.OverrideProducesMime}}</td>
-                <td>{{$end.OverrideConsumesMime}}</td>
+                <td>{{$end.ProducesMime}}</td>
+                <td>{{$end.ConsumesMime}}</td>
                 <td>{{$end.AllowGzip}}</td>
                 <td>{{$end.PostData}}</td>
                 <td>{{$end.Output}}</td>

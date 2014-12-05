@@ -137,7 +137,26 @@ func extractComments(packageImportPath string) map[string]string {
 }
 
 
+/*
+    Creates HTML documents of all the registered services and authorizers.
+    Register your service as you normally would.
+        gorest.RegisterService(new(MyService))
 
+    Load up the template files into a string
+        buf := bytes.Buffer{}
+        buf.WriteString(readInFile("src/github.com/fromkeith/gorest/server.doc.template.html"))
+        buf.WriteString("\n")
+        buf.WriteString(readInFile("src/github.com/fromkeith/gorest/auth.doc.template.html"))
+        buf.WriteString("\n")
+        buf.WriteString(readInFile("src/github.com/fromkeith/gorest/structs.doc.template.html"))
+        buf.WriteString("\n")
+        buf.WriteString(readInFile("src/github.com/fromkeith/gorest/index.doc.template.html"))
+
+    Then call this function.
+        gorest.DocumentServices(buf.String(), "outputFolder")
+
+    Outfolder will be populated with nice documentation on your service!
+*/
 func DocumentServices(templateSource string, outputFolder string) {
     packageComments := make(map[string]map[string]string)
     services := make(map[string]docOutput)

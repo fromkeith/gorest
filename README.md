@@ -17,6 +17,8 @@ This fork changes the following:
 - Individual endpoints can now specify their own 'produces' tag. So you can have 1 service output many data types.
 - Allow Put, Post and Delete requests to return data in the body.
 - Applied some enforcement on the 'output' tag, to ensure it is specified. (Unknown if this will break people)
+- Generates documentation on your services. See DocumentServices for more info.
+- Allows you to redefine default result codes. So if you want 200 for POST you can now set that.
 
 License
 =======

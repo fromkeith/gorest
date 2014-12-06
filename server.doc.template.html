@@ -90,7 +90,15 @@
                             {{range $field := $end.PostData.Fields}}
                             <tr>
                                 <td>{{$field.Name}}</td>
-                                <td>{{$field.Type}}</td>
+                                <td>
+                                    {{if $field.SubType}}
+                                    <a href="datatypes.html#{{$field.SubType.PackageName}}-{{$field.SubType.Name}}">
+                                    {{end}}
+                                        {{$field.Type}}
+                                    {{if $field.SubType}}
+                                    </a>
+                                    {{end}}
+                                </td>
                             </tr>
                             {{end}}
                         </table>
@@ -113,7 +121,15 @@
                             {{range $field := $end.Output.Fields}}
                             <tr>
                                 <td>{{$field.Name}}</td>
-                                <td>{{$field.Type}}</td>
+                                <td>
+                                    {{if $field.SubType}}
+                                    <a href="datatypes.html#{{$field.SubType.PackageName}}-{{$field.SubType.Name}}">
+                                    {{end}}
+                                        {{$field.Type}}
+                                    {{if $field.SubType}}
+                                    </a>
+                                    {{end}}
+                                </td>
                             </tr>
                             {{end}}
                         </table>

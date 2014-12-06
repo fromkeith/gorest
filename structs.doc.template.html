@@ -25,14 +25,14 @@
             <ul>
                 {{range $struc := .Structs}}
                 <li>
-                    <a href="#{{$struc.Name}}">{{$struc.Name}}</a>
+                    <a href="#{{$struc.PackageName}}-{{$struc.Name}}">{{$struc.PackageName}}.{{$struc.Name}}</a>
                 </li>
                 {{end}}
             </ul>
         </div>
         {{range $struc := .Structs}}
         <div class="container">
-            <h3 id="{{$struc.Name}}">{{$struc.Name}}</h3>
+            <h3 id="{{$struc.PackageName}}-{{$struc.Name}}">{{$struc.Name}}</h3>
             <pre class="well">{{$struc.Doc}}</pre>
             <table class="table">
                 {{range $field := $struc.Fields}}

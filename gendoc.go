@@ -213,10 +213,10 @@ func DocumentServices(templateSource string, outputFolder string) {
     for i := range services {
         for j := range services[i].Endpoints {
             if services[i].Endpoints[j].PostData != nil {
-                structList = append(structList, *services[i].Endpoints[j].PostData)
+                structList = append(structList, createStructList(*services[i].Endpoints[j].PostData)...)
             }
             if services[i].Endpoints[j].Output != nil {
-                structList = append(structList, *services[i].Endpoints[j].Output)
+                structList = append(structList, createStructList(*services[i].Endpoints[j].Output)...)
             }
         }
     }
@@ -224,11 +224,23 @@ func DocumentServices(templateSource string, outputFolder string) {
 
 }
 
+func createStructList(d docStruct) []docStruct {
+    res := make([]docStruct, 1)
+    res[0] = d
+    for i := range d.Fields {
+        if d.Fields[i].SubType == nil {
+            continue
+        }
+        res = append(res, createStructList(*d.Fields[i].SubType)...)
+    }
+    return res
+}
+
 type sortedStructs []docStruct
 
 func (a sortedStructs) Len() int           { return len(a) }
 func (a sortedStructs) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a sortedStructs) Less(i, j int) bool { return a[i].Name < a[j].Name }
+func (a sortedStructs) Less(i, j int) bool { return a[i].PackageName + "." + a[i].Name < a[j].PackageName + "." + a[j].Name }
 
 type sortedAuths []docAuth
 
@@ -362,17 +374,48 @@ func docDescribeStruct(dataType reflect.Type, packageComments map[string]map[str
         dataType = dataType.Elem()
     }
     inst := reflect.New(dataType).Elem().Type()
+    if inst.PkgPath() == "" {
+        return nil
+    }
     if _, ok := packageComments[inst.PkgPath()]; !ok {
         packageComments[inst.PkgPath()] = extractComments(inst.PkgPath())
     }
     desc.Name = dataType.Name()
+    lastSlash := strings.LastIndex(dataType.PkgPath(), "/")
+    if lastSlash != -1 {
+        desc.PackageName = dataType.PkgPath()[lastSlash + 1:]
+    } else {
+        desc.PackageName = dataType.PkgPath()
+    }
     desc.Doc = packageComments[inst.PkgPath()][desc.Name]
     desc.Fields = make([]docField, inst.NumField())
     for i := 0; i < inst.NumField(); i++ {
+        deeperInspect := inst.Field(i).Type
+        var subType *docStruct
+        for {
+            if deeperInspect.Kind() == reflect.Slice {
+                deeperInspect = deeperInspect.Elem()
+                continue
+            }
+            if deeperInspect.Kind() == reflect.Ptr {
+                deeperInspect = deeperInspect.Elem()
+                continue
+            }
+            if deeperInspect.Kind() == reflect.Struct {
+                if inst.Field(i).Type.String() == "time.Time" || inst.Field(i).Type.String() == "*time.Time" {
+                    break
+                }
+                subType = docDescribeStruct(deeperInspect, packageComments)
+                break
+            }
+            // don't know what it is... or care at this moment
+            break
+        }
         desc.Fields[i] = docField{
             Name: inst.Field(i).Name,
             Type: inst.Field(i).Type.String(),
             Doc: packageComments[inst.PkgPath()][desc.Name + "." + inst.Field(i).Name],
+            SubType: subType,
         }
     }
     return &desc
@@ -382,6 +425,7 @@ type docField struct {
     Name            string
     Type            string
     Doc             string
+    SubType         *docStruct
 }
 
 type docDataTypes struct {
@@ -393,6 +437,7 @@ type docStruct struct {
     IsArray             bool
     Name                string
     Doc                 string
+    PackageName         string
 }
 
 type docService struct {

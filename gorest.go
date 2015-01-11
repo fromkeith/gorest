@@ -83,8 +83,8 @@ const (
 
 var (
 	defaultGet 	= 200
-	defaultPost = 200
-	defaultPut 	= 202
+	defaultPost = 202
+	defaultPut 	= 200
 	defaultDelete = 200
 	defaultHead = 200
 	defaultOptions = 200

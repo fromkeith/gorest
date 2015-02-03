@@ -66,6 +66,7 @@ import (
 	"strings"
 	"log" // for the default logger
 	"compress/gzip"
+	"time"
 )
 
 type GoRestService interface {
@@ -124,6 +125,7 @@ type EndPointHelper struct {
 type restStatus struct {
 	httpCode int
 	reason   string //Especially for code in range 4XX to 5XX
+	callTime 	time.Duration
 }
 
 func (err restStatus) String() string {
@@ -144,7 +146,8 @@ type HealthHandler interface {
 	// Called on the handling of a request.
 	// Reports the Response (status) code of a request. Usefull to help capture
 	// the overall health of your server.
-	ReportResponseCode(urlPath *url.URL, code int, endPoint *EndPointHelper)
+	//	callDuration is the time spent inside your handler
+	ReportResponseCode(urlPath *url.URL, code int, endPoint *EndPointHelper, callDuration time.Duration)
 }
 
 // A simple interface to wrap a basic leveled logger.
@@ -302,7 +305,7 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if recoverFunc != nil {
 				recoverFunc(w, r, rec)
 				if _manager().serverHealthHandler != nil {
-					_manager().serverHealthHandler.ReportResponseCode(r.URL, 500, nil)
+					_manager().serverHealthHandler.ReportResponseCode(r.URL, 500, nil, 0)
 				}
 			} else if _manager().logger != nil {
 				_manager().logger.Errorf("Internal Server Error: Could not serve page: %s %s", r.Method, url_)
@@ -318,7 +321,7 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		w.Write([]byte("Client sent bad request."))
 		if _manager().serverHealthHandler != nil {
-			_manager().serverHealthHandler.ReportResponseCode(r.URL, 400, nil)
+			_manager().serverHealthHandler.ReportResponseCode(r.URL, 400, nil, 0)
 		}
 		return
 	}
@@ -394,7 +397,7 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if _manager().serverHealthHandler != nil && writtenStatusCode != -1 {
-			_manager().serverHealthHandler.ReportResponseCode(r.URL, writtenStatusCode, &EndPointHelper{ep})
+			go _manager().serverHealthHandler.ReportResponseCode(r.URL, writtenStatusCode, &EndPointHelper{ep}, state.callTime)
 		}
 
 	} else {

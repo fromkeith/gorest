@@ -64,6 +64,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 )
 
 const (
@@ -353,7 +354,7 @@ func prepareServe(context *Context, ep endPointStruct) (io.ReadCloser, restStatu
 			}
 
 		}
-		return nil, restStatus{403, "Request denied, please ensure correct authentication and authorization."}
+		return nil, restStatus{403, "Request denied, please ensure correct authentication and authorization.", 0}
 	}
 
 Run:
@@ -445,12 +446,13 @@ Run:
 
 		//Now call the actual method with the data
 		var ret []reflect.Value
+		callTime := time.Now()
 		if ep.isVariableLength {
 			ret = servVal.Method(ep.methodNumberInParent).CallSlice(arrArgs)
 		} else {
-			_manager().logger.Infof("servVal.Method(%d)", ep.methodNumberInParent)
 			ret = servVal.Method(ep.methodNumberInParent).Call(arrArgs)
 		}
+		totalCallTime := time.Now().Sub(callTime)
 
 		// has 1 return value, and the endpoint specifies a return type
 		if len(ret) == 1 && ep.outputType != "" {
@@ -460,26 +462,26 @@ Run:
 			}
 			//At this stage we should be ready to write the response to client
 			if bytarr, err := InterfaceToBytes(ret[0].Interface(), mimeType); err == nil {
-				return bytarr, restStatus{http.StatusOK, ""}
+				return bytarr, restStatus{http.StatusOK, "", totalCallTime}
 			} else {
 				//This is an internal error with the registered marshaller not being able to marshal internal structs
-				return nil, restStatus{http.StatusInternalServerError, "Internal server error. Could not Marshal/UnMarshal data: " + err.Error()}
+				return nil, restStatus{http.StatusInternalServerError, "Internal server error. Could not Marshal/UnMarshal data: " + err.Error(), totalCallTime}
 			}
 		} else {
-			return nil, restStatus{http.StatusOK, ""}
+			return nil, restStatus{http.StatusOK, "", totalCallTime}
 		}
 	}
 
 	//Just in case the whole civilization crashes and it falls thru to here. This shall never happen though... well tested
 	_manager().logger.Panicf("There was a problem with request handing. Probably a bug, please report.") //Add client data, and send support alert
-	return nil, restStatus{http.StatusInternalServerError, "GoRest: Internal server error."}
+	return nil, restStatus{http.StatusInternalServerError, "GoRest: Internal server error.", 0}
 }
 
 func makeArg(data string, template reflect.Type, mime string) (reflect.Value, restStatus) {
 	i := reflect.New(template).Interface()
 
 	if data == "" {
-		return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, ""}
+		return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, "", 0}
 	}
 	/*else{
 		log.Println("Data sent: ",data)
@@ -490,7 +492,7 @@ func makeArg(data string, template reflect.Type, mime string) (reflect.Value, re
 	err := BytesToInterface(buf, i, mime)
 
 	if err != nil {
-		return reflect.ValueOf(nil), restStatus{http.StatusBadRequest, "Error Unmarshalling data using " + mime + ". Client sent incompetible data format in entity. (" + err.Error() + ")"}
+		return reflect.ValueOf(nil), restStatus{http.StatusBadRequest, "Error Unmarshalling data using " + mime + ". Client sent incompetible data format in entity. (" + err.Error() + ")", 0}
 	}
-	return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, ""}
+	return reflect.ValueOf(i).Elem(), restStatus{http.StatusOK, "", 0}
 }

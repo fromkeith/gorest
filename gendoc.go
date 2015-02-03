@@ -180,6 +180,7 @@ func DocumentServices(templateSource string, outputFolder string) {
             Endpoints: make([]docEndpoint, 0, 10),
         }
     }
+    authRoles := make(map[string]map[string][]docEndpoint)
     for _, v := range manager.endpoints {
         var s docOutput
         var ok bool
@@ -187,6 +188,15 @@ func DocumentServices(templateSource string, outputFolder string) {
             panic("CouldNotFindServiceForEndPoint")
         }
         ep := documentEndpoint(v, s.Service, manager, packageComments)
+        if s.Service.Realm != "" {
+            if _, ok := authRoles[s.Service.Realm]; !ok {
+                authRoles[s.Service.Realm] = make(map[string][]docEndpoint)
+            }
+            if _, ok := authRoles[s.Service.Realm][ep.Role]; !ok {
+                authRoles[s.Service.Realm][ep.Role] = make([]docEndpoint, 0, 10)
+            }
+            authRoles[s.Service.Realm][ep.Role] = append(authRoles[s.Service.Realm][ep.Role], ep)
+        }
         s.Endpoints = append(s.Endpoints, ep)
         services[v.parentTypeName] = s
     }
@@ -207,6 +217,7 @@ func DocumentServices(templateSource string, outputFolder string) {
         auths[name] = docAuth{
             Realm: name,
             Doc: packageComments[pkgPath][actualFuncName],
+            RoleEndpoints: authRoles[name],
         }
     }
     structList := make([]docStruct, 0, len(manager.endpoints))
@@ -364,6 +375,7 @@ func documentEndpoint(v endPointStruct, service docService, manager *manager, pa
         PostData: postDataDescription,
         Output: outputDescription,
         Doc: methodDoc,
+        Service: service.Name,
     }
 }
 
@@ -452,6 +464,7 @@ type docService struct {
 type docAuth struct {
     Realm           string
     Doc             string
+    RoleEndpoints       map[string][]docEndpoint
 }
 type docAuthContainer struct {
     Auths               []docAuth
@@ -495,4 +508,5 @@ type docEndpoint struct {
     PostData                *docStruct
     Output                  *docStruct
     Doc                     string
+    Service                 string
 }

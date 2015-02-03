@@ -148,6 +148,8 @@ type HealthHandler interface {
 	// the overall health of your server.
 	//	callDuration is the time spent inside your handler
 	ReportResponseCode(urlPath *url.URL, code int, endPoint *EndPointHelper, callDuration time.Duration)
+	// called when an on going call is taking too long. Call length is defined via SetWarningDuration
+	ReportLongCall(endPoint *EndPointHelper, startedAt time.Time)
 }
 
 // A simple interface to wrap a basic leveled logger.
@@ -173,6 +175,7 @@ type manager struct {
 	serverRecoverHandler 	RecoverHandlerFunc
 	serverHealthHandler 	HealthHandler
 	logger 					SimpleLogger
+	callDurationWarning 	time.Duration
 }
 
 type defaultLogger struct {}
@@ -200,11 +203,11 @@ func newManager() *manager {
 	man.serviceTypes = make(map[string]serviceMetaData, 0)
 	man.endpoints = make(map[string]endPointStruct, 0)
 	man.logger = defaultLogger{}
+	man.callDurationWarning = -1
 	return man
 }
 func init() {
 	RegisterMarshaller(Application_Json, NewJSONMarshaller())
-
 }
 
 // Name of the endpoint. The variable name you used to in the endpoint definition
@@ -433,6 +436,13 @@ func RegisterHealthHandler(handler HealthHandler) {
 func RegisterRecoveryHandler(handler RecoverHandlerFunc) {
 	intializeManager()
 	_manager().serverRecoverHandler = handler
+}
+
+// If a handler is still handling a request after the specified duration,
+// the health handler's ReportLongCall method will be invoked
+func SetWarningDuration(dur time.Duration) {
+	intializeManager()
+	_manager().callDurationWarning = dur
 }
 
 func (man *manager) getType(name string) serviceMetaData {

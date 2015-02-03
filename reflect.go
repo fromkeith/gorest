@@ -447,10 +447,19 @@ Run:
 		//Now call the actual method with the data
 		var ret []reflect.Value
 		callTime := time.Now()
+		var warnTimer *time.Timer
+		if _manager().callDurationWarning > 0 && _manager().serverHealthHandler != nil {
+			warnTimer = time.AfterFunc(_manager().callDurationWarning, func () {
+				_manager().serverHealthHandler.ReportLongCall(&EndPointHelper{ep}, callTime)
+			})
+		}
 		if ep.isVariableLength {
 			ret = servVal.Method(ep.methodNumberInParent).CallSlice(arrArgs)
 		} else {
 			ret = servVal.Method(ep.methodNumberInParent).Call(arrArgs)
+		}
+		if warnTimer != nil {
+			warnTimer.Stop()
 		}
 		totalCallTime := time.Now().Sub(callTime)
 

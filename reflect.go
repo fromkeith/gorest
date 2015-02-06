@@ -452,6 +452,9 @@ Run:
 			warnTimer = time.AfterFunc(_manager().callDurationWarning, func () {
 				_manager().serverHealthHandler.ReportLongCall(&EndPointHelper{ep}, callTime)
 			})
+			// ensure we stop the timer.. otherwise on panics we might incorrectly
+			// report that call as taking too long
+			defer warnTimer.Stop()
 		}
 		if ep.isVariableLength {
 			ret = servVal.Method(ep.methodNumberInParent).CallSlice(arrArgs)

@@ -302,13 +302,19 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	_manager().logger.Tracef("ServeHttp [%s] %s", r.Method, r.URL.String())
 
+	var knownEndpoint *endPointStruct
+
 	defer func() {
 		if rec := recover(); rec != nil {
 			recoverFunc := _manager().serverRecoverHandler
 			if recoverFunc != nil {
 				recoverFunc(w, r, rec)
 				if _manager().serverHealthHandler != nil {
-					_manager().serverHealthHandler.ReportResponseCode(r.URL, 500, nil, 0)
+					var epHelp *EndPointHelper
+					if knownEndpoint != nil {
+						epHelp = &EndPointHelper{*knownEndpoint}
+					}
+					_manager().serverHealthHandler.ReportResponseCode(r.URL, 500, epHelp, 0)
 				}
 			} else if _manager().logger != nil {
 				_manager().logger.Errorf("Internal Server Error: Could not serve page: %s %s", r.Method, url_)
@@ -330,6 +336,8 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ep, args, queryArgs, xsrft, found := getEndPointByUrl(r.Method, url_); found {
+
+		knownEndpoint = &ep
 
 		ctx := new(Context)
 		ctx.writer = w

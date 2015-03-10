@@ -400,7 +400,11 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		} else {
 			if _manager().logger != nil {
-				_manager().logger.Errorf("Problem with request. Error: %s %d %s; Request: %v", r.Method, state.httpCode, state.reason, r.URL.RequestURI())
+				if state.httpCode >= 500 {
+					_manager().logger.Errorf("Problem with request. Error: %s %d %s; Request: %v", r.Method, state.httpCode, state.reason, r.URL.RequestURI())
+				} else {
+					_manager().logger.Warnf("Problem with request. Error: %s %d %s; Request: %v", r.Method, state.httpCode, state.reason, r.URL.RequestURI())
+				}
 			}
 			writtenStatusCode = state.httpCode
 			w.WriteHeader(state.httpCode)

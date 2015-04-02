@@ -58,14 +58,15 @@
 package gorest
 
 import (
+	"compress/gzip"
+	"fmt"
 	"io"
+	"log" // for the default logger
 	"net/http"
 	"net/url"
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"log" // for the default logger
-	"compress/gzip"
 	"time"
 )
 
@@ -113,6 +114,7 @@ type endPointStruct struct {
 	parentTypeName       string
 	methodNumberInParent int
 	role                 string
+	overrideCharset      string // overrides what to set the charset to
 	overrideProducesMime string // overrides the produces mime type
 	overrideConsumesMime string // overrides the produces mime type
 	allowGzip 		     int // 0 false, 1 true, 2 unitialized
@@ -136,6 +138,7 @@ type serviceMetaData struct {
 	template     interface{}
 	consumesMime string
 	producesMime string
+	charset 	 string
 	root         string
 	realm        string
 	allowGzip    bool
@@ -352,6 +355,13 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var mimeType string
 		if mimeType = ep.overrideProducesMime; mimeType == "" {
 			mimeType = _manager().getType(ep.parentTypeName).producesMime
+		}
+		var charset string
+		if charset = ep.overrideCharset; charset == "" {
+			charset = _manager().getType(ep.parentTypeName).charset
+		}
+		if charset != "-" && charset != "" {
+			mimeType = fmt.Sprintf("%s; charset=%s", mimeType, charset)
 		}
 
 

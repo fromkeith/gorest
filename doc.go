@@ -48,7 +48,8 @@ The rest service allows for the following tags to be specified:
                     //  Postdata will be unmarshalled from that type. Eg. "application/json"
     realm           // The security realm this service resides in. See Security section.
     allowGzip       // If by default all endpoints should allow their data to be returned as gzip data.
-                    //  Can be overriden at each endpoint. Default is 'false' for backwards compatibility,
+                    //  Can be overriden at each endpoint. Default is 'false' for backwards compatibility.
+    charset         // allows charset to be added to the resulting Content-Type header. Default: Empty;
 
 Each endpoint allows the following tags to be specified:
 
@@ -67,6 +68,8 @@ Each endpoint allows the following tags to be specified:
                     //  Eg. "[]MyStruct" or "string"
     allowGzip       // If this endpoint should allow its data to be returned as gzip data.
                     //  If unset, it will use the service's value. Overrides service's value.
+    charset         // allows charset to be added to the resulting Content-Type header. Overrides
+                    // the service. If you want no charset set, set to '-'.
 
 Security
 

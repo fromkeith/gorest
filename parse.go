@@ -116,6 +116,10 @@ func prepServiceMetaData(manager *manager, root string, tags reflect.StructTag, 
 		md.producesMime = Application_Json //Default
 	}
 
+	if tag := tags.Get("charset"); tag != "" {
+		md.charset = tag
+	}
+
 	if tag := tags.Get("realm"); tag != "" {
 		md.realm = tag
 		if GetAuthorizer(tag) == nil {
@@ -197,6 +201,10 @@ func makeEndPointStruct(manager *manager, tags reflect.StructTag, serviceRoot st
 			if GetMarshallerByMime(tag) == nil {
 				manager.logger.Panicf(errorString_MarshalMimeType, tag)
 			}
+		}
+
+		if tag := tags.Get("charset"); tag != "" {
+			ms.overrideCharset = tag
 		}
 
 		if tag := tags.Get("produces"); tag != "" {

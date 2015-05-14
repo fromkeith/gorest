@@ -342,6 +342,12 @@ func (_ manager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		knownEndpoint = &ep
 
+		if xsrft == "" {
+			if c, err := r.Cookie(XSXRF_COOKIE_NAME); err == nil {
+				xsrft = c.Value
+			}
+		}
+
 		ctx := new(Context)
 		ctx.writer = w
 		ctx.request = r

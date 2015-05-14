@@ -33,6 +33,9 @@ import (
 	"encoding/xml"
 	"github.com/ajg/form"
 	"strings"
+	"github.com/gorilla/schema"
+	"net/url"
+	"errors"
 )
 
 //A Marshaller represents the two functions used to marshal/unmarshal interfaces back and forth.
@@ -107,5 +110,23 @@ func formMarshal(v interface{}) (io.ReadCloser, error) {
 }
 func formUnMarshal(data []byte, v interface{}) error {
 	err := form.DecodeString(v, string(data))
+	return err
+}
+
+//application/x-www-form-urlencoded
+func NewUrlEncodedMarshaller() * Marshaller {
+	m := Marshaller{urlEncodedMarshal, urlEncodedUnMarshal}
+	return &m
+}
+func urlEncodedMarshal(v interface{}) (io.ReadCloser, error) {
+	return nil, errors.New("NotSupported")
+}
+func urlEncodedUnMarshal(data []byte, v interface{}) error {
+	dec := schema.NewDecoder()
+	q, err := url.ParseQuery(string(data))
+	if err != nil {
+		return err
+	}
+	err = dec.Decode(v, q)
 	return err
 }
